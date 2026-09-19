@@ -58,7 +58,7 @@ public sealed class About : ISettingsTab
         // Support links are deliberately not shown on a modified build. Chat 2's
         // maintainers did not write these changes, cannot reproduce problems caused
         // by them, and should not be spending their time on our bugs. Credit above
-        // stays exactly as it is — this removes the support routing, not the
+        // stays exactly as it is. This removes the support routing, not the
         // attribution.
         if (Hosting.IsHosted)
         {

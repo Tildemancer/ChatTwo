@@ -6,7 +6,7 @@ namespace ChatTwo;
 
 /// <summary>
 /// Where Chat 2 keeps its settings and data. When hosted inside another plugin,
-/// points at Chat 2's own folder rather than the host's config directory.
+/// points at Chat 2's own folder, NOT the host's config directory.
 /// </summary>
 public static class Hosting
 {
@@ -16,7 +16,7 @@ public static class Hosting
     public static bool IsHosted => Overridden != null;
 
     /// <summary>
-    /// Redirects settings and data to a specific folder. Call before constructing
+    /// Redirects settings and data to a specific folder. Call this BEFORE constructing
     /// <see cref="Plugin"/>.
     /// </summary>
     public static void HostIn(DirectoryInfo directory)
@@ -39,8 +39,8 @@ public static class Hosting
     };
 
     /// <summary>
-    /// Resolves types named in the settings file against the running copy of Chat 2;
-    /// without this the serializer loads a second copy of the assembly.
+    /// Resolves types named in the settings file against the running copy of Chat 2.
+    /// Without this the serializer loads a SECOND copy of the assembly. Yikes!
     /// </summary>
     private sealed class LocalAssemblyBinder : DefaultSerializationBinder
     {
@@ -49,7 +49,7 @@ public static class Hosting
 
         public override Type BindToType(string? assemblyName, string typeName)
         {
-            // Resolved whole, not by testing our assembly first: a runtime generic
+            // Resolve the whole name, not our assembly first: a runtime generic
             // can have our types as its arguments.
             var qualified = assemblyName == null ? typeName : $"{typeName}, {assemblyName}";
 
@@ -71,10 +71,10 @@ public static class Hosting
                 : assembly.GetType(name, throwOnError: false, ignoreCase);
     }
 
-    /// <summary>Settings existed but could not be read; saving is refused so defaults never overwrite them.</summary>
+    /// <summary>Settings existed but could not be read. Saving is refused so defaults NEVER overwrite them.</summary>
     private static bool LoadFailed;
 
-    /// <summary>Reads the configuration. When hosted, Dalamud would return the host's config object.</summary>
+    /// <summary>Reads the configuration. When hosted, Dalamud would hand back the HOST's config object.</summary>
     public static Configuration LoadConfig()
     {
         if (!IsHosted)
@@ -127,7 +127,7 @@ public static class Hosting
             var path = ConfigPath;
             var json = JsonConvert.SerializeObject(config, Formatting.Indented, SerializerSettings);
 
-            // Write beside the target and move into place, so a failed write leaves no half-file.
+            // Write beside the target and move into place: a failed write leaves no half-file.
             var temporary = path + ".tmp";
             File.WriteAllText(temporary, json);
 

@@ -5,7 +5,7 @@ using Dalamud.Interface.Utility;
 
 namespace ChatTwo.Ui;
 
-/// <summary>Marks misspelled words with a red underline and offers corrections on them.</summary>
+/// <summary>Marks misspelled words with a red underline and offers corrections.</summary>
 public sealed class SpellUnderline
 {
     private static readonly Vector4 Colour = new(1f, 0.25f, 0.25f, 1f);
@@ -20,7 +20,7 @@ public sealed class SpellUnderline
 
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
 
-    /// <summary>Draws a line under one item that has just been drawn.</summary>
+    /// <summary>Draws a line under the item just drawn.</summary>
     public static void UnderlineLastItem()
     {
         var min = ImGui.GetItemRectMin();
@@ -36,7 +36,7 @@ public sealed class SpellUnderline
 
     /// <summary>
     /// Underlines the misspellings in the input just drawn, and offers corrections on
-    /// right-click. Call immediately after the input, while its box is current.
+    /// right-click. Call this IMMEDIATELY after the input, while its box is current.
     /// </summary>
     public void DrawForInput(ref string text)
     {
@@ -52,8 +52,8 @@ public sealed class SpellUnderline
         var size = ImGui.GetItemRectSize();
 
         var inset = ImGui.GetStyle().FramePadding.X;
-        // Once the input scrolls sideways the on-screen text no longer starts at index 0
-        // and the scroll offset is not exposed, so draw nothing rather than the wrong words.
+        // Once the input scrolls sideways the on-screen text no longer starts at index 0,
+        // and the scroll offset is not exposed. Draw nothing rather than the wrong words, for now.
         if (ImGui.CalcTextSize(text).X > size.X - inset * 2)
             return;
 
@@ -118,7 +118,7 @@ public sealed class SpellUnderline
         return true;
     }
 
-    /// <summary>Swaps the first whole-word occurrence, never one inside a longer word.</summary>
+    /// <summary>Swaps the first whole-word occurrence, NEVER one inside a longer word.</summary>
     public static string ReplaceWord(string text, string word, string replacement)
     {
         for (var i = text.IndexOf(word, StringComparison.Ordinal); i >= 0;

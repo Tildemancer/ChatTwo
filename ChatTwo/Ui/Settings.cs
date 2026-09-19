@@ -132,7 +132,7 @@ public sealed class SettingsWindow : Window
 
         // Anna's and Infi's Ko-fi links used to sit here. They are on TildeTools'
         // Credits tab instead, beside what this copy changed and a note that they do
-        // not distribute it — an appeal in someone else's plugin needs that context,
+        // not distribute it. An appeal in someone else's plugin needs that context,
         // and three plugins each asking separately gave none of them any.
 
         if (!save)

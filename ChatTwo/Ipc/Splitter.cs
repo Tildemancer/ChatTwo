@@ -3,12 +3,12 @@ using Dalamud.Plugin.Ipc;
 namespace ChatTwo.Ipc;
 
 /// <summary>
-/// Optional cooperation with a plugin that splits over-length messages.
-/// Every call falls back to Chat 2's normal behaviour when none is installed.
+/// Optional: talks to a plugin that splits over-length messages.
+/// Falls back to Chat 2's normal behaviour when none is installed.
 /// </summary>
 public sealed class Splitter : IDisposable
 {
-    /// <summary>Bytes, not characters. The limit the game itself enforces.</summary>
+    /// <summary>Bytes, NOT characters. The limit the game itself enforces.</summary>
     public const int DefaultByteCap = 500;
 
     /// <summary>The API version this was written against.</summary>
@@ -59,7 +59,7 @@ public sealed class Splitter : IDisposable
             IsAvailable = true;
             var cap = InputByteCapGate.InvokeFunc();
 
-            // Never shrink below the game's limit on another plugin's word.
+            // NEVER shrink below the game's limit on another plugin's word.
             return cap < DefaultByteCap ? DefaultByteCap : cap;
         }
         catch
@@ -71,8 +71,8 @@ public sealed class Splitter : IDisposable
     }
 
     /// <summary>
-    /// True when a compatible splitter is answering. Recorded rather than inferred
-    /// from the cap, which would read as "absent" at exactly the game's own limit.
+    /// True when a compatible splitter is answering. Recorded, not inferred from
+    /// the cap: a cap at exactly the game's own limit would read as "absent".
     /// </summary>
     public bool IsAvailable { get; private set; }
 
@@ -90,7 +90,7 @@ public sealed class Splitter : IDisposable
         }
     }
 
-    /// <summary>Offers a chat line to the splitter. True means it will send it instead.</summary>
+    /// <summary>Offers a chat line to the splitter. True means the splitter sends it, not us.</summary>
     public bool TrySend(string line)
     {
         try

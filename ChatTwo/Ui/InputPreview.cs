@@ -26,7 +26,7 @@ public partial class InputPreview : Window
 
     /// <summary>
     /// The input the preview was last built from. Compared as text, not length:
-    /// a same-length edit must still rebuild.
+    /// a same-length edit MUST still rebuild.
     /// </summary>
     private string LastInput = string.Empty;
     private Message? PreviewMessage;
@@ -109,7 +109,7 @@ public partial class InputPreview : Window
 
     /// <summary>
     /// Asks the splitter how the message divides up, only on change: this is a
-    /// cross-plugin call and the preview draws every frame.
+    /// cross-plugin call and the preview draws EVERY frame.
     /// </summary>
     private void UpdateSplitParts()
     {
@@ -177,7 +177,7 @@ public partial class InputPreview : Window
 
         var x = fitsRight || !fitsLeft ? right : windowPos.X - previewWidth;
 
-        // Level with the chat window, sliding up only as far as it must to stay on screen.
+        // Level with the chat window, sliding up only as far as it must.
         var top = Math.Clamp(windowPos.Y, 0, Math.Max(0, screen.Y - PreviewHeight));
 
         return new Vector2(Math.Clamp(x, 0, Math.Max(0, screen.X - previewWidth)), top);
@@ -299,7 +299,7 @@ public partial class InputPreview : Window
 
     /// <summary>
     /// Draws a block into a hidden child of one column's width and reports its height.
-    /// The child's width matters: text wraps against the region it is drawn in.
+    /// The child's width MATTERS: text wraps against the region it is drawn in.
     /// </summary>
     private float MeasureColumn(Action draw)
     {
@@ -307,7 +307,7 @@ public partial class InputPreview : Window
         var height = 0f;
 
         // Left at the cursor, one pixel tall: a child moved outside its parent is
-        // culled, and a culled child measures everything as zero height.
+        // culled, and a culled child measures as zero height.
         using (var child = ImRaii.Child("##preview-measure", new Vector2(ColumnWidth, 1f), false,
                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoInputs))
         {
@@ -341,7 +341,7 @@ public partial class InputPreview : Window
         }
 
         // A tooltip sizes itself, so it gets one column. The mode is checked as well
-        // as the count: columns from window mode linger after a switch to tooltip.
+        // as the count: columns from window mode LINGER after a switch to tooltip.
         if (!IsWindowMode || Columns.Count == 0)
         {
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
@@ -468,7 +468,7 @@ public partial class InputPreview : Window
 
         using var indent = ImRaii.PushIndent();
 
-        // Both saved: the marks belong to the source and must be restored with it.
+        // Both saved: the marks belong to the source and MUST be restored with it.
         var previousSource = SpellSource;
         var previousMarks = SpellMarks;
         MapsToInput = false;
@@ -595,8 +595,8 @@ public partial class InputPreview : Window
                 if (ImGui.Selectable($"{letter}##{CursorPosition + unique}", false, ImGuiSelectableFlags.None, letterSize)
                     && MapsToInput)
                 {
-                    // Only when the drawn text is the input itself: a split part carries
-                    // markers the box does not, so its letters map to no input position.
+                    // Only when the drawn text is the input itself: a split part
+                    // carries markers the box does not.
                     SelectedCursorPos = CursorPosition;
                     InputHandler.FocusedPreview = true;
                 }
@@ -610,7 +610,7 @@ public partial class InputPreview : Window
                         InputHandler.Spelling.SetPendingWord(misspelled);
 
                         // Flagged, not opened here: a popup is found by the id stack it
-                        // was opened under, and this runs inside a child under a pushed id.
+                        // was opened under, and this runs inside a child under a pushed id. Yikes!
                         OpenSpellingPopup = true;
                     }
                 }

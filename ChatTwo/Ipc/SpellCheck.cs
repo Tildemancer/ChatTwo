@@ -12,8 +12,8 @@ public readonly record struct Misspelling(int Start, int Length)
 }
 
 /// <summary>
-/// Optional spellchecking from a plugin that provides a dictionary; inert when none is installed.
-/// Results are cached per string, since the preview redraws every frame.
+/// Optional spellchecking from a plugin that provides a dictionary; does nothing when none is
+/// installed. Results are cached per string, since the preview redraws every frame.
 /// </summary>
 public sealed class SpellCheck : IDisposable
 {
@@ -32,7 +32,7 @@ public sealed class SpellCheck : IDisposable
     /// </summary>
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
 
-    /// <summary>Cleared wholesale rather than aged; the keys are half-typed words.</summary>
+    /// <summary>Cleared all at once instead of aged out: the keys are half-typed words.</summary>
     private const int MostToRemember = 64;
 
     public SpellCheck()
@@ -115,8 +115,8 @@ public sealed class SpellCheck : IDisposable
     private IReadOnlyList<string> LastSuggestions = [];
 
     /// <summary>
-    /// Words that might have been meant instead, best first. Cached: the open menu asks every
-    /// frame and a lookup costs tens of milliseconds.
+    /// Words that might have been meant instead, best first. Cached because the open menu asks
+    /// EVERY frame and a lookup costs tens of milliseconds.
     /// </summary>
     public IReadOnlyList<string> Suggest(string word)
     {
@@ -153,8 +153,8 @@ public sealed class SpellCheck : IDisposable
     }
 
     /// <summary>
-    /// Leaves a word alone until the game is restarted, without learning it. Handed to the
-    /// checker, not filtered here, so every text box agrees on what is ignored.
+    /// Leaves a word alone until the game restarts, without learning it. The checker does the
+    /// filtering, not us, so every text box agrees.
     /// </summary>
     public void Ignore(string word)
     {
