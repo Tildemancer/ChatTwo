@@ -88,6 +88,14 @@ public static class EmoteCache
     {
         foreach (var emote in EmoteImages.Values)
             emote.InnerDispose();
+
+        // This is static, so it outlives the plugin instance. Left as it was, a
+        // second startup within the same game session would find State already
+        // Done and hand out textures that have been disposed. Reset so it loads
+        // again from scratch.
+        EmoteImages.Clear();
+        SortedCodeArray = [];
+        State = LoadingState.Unloaded;
     }
 
     public static bool Exists(string code)
@@ -143,7 +151,7 @@ public static class EmoteCache
 
         public async Task<byte[]> LoadAsync(Emote emote)
         {
-            var dir = Path.Join(Plugin.Interface.ConfigDirectory.FullName, "EmoteCacheV1");
+            var dir = Path.Join(Hosting.DataDirectory.FullName, "EmoteCacheV1");
             Directory.CreateDirectory(dir);
 
             var filePath = Path.Join(dir, $"{emote.Id}.{emote.ImageType}");

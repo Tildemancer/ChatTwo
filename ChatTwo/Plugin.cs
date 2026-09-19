@@ -61,6 +61,8 @@ public sealed class Plugin : IDalamudPlugin
     public MessageManager MessageManager { get; }
     public IpcManager Ipc { get; }
     public ExtraChat ExtraChat { get; }
+    public Splitter Splitter { get; }
+    public SpellCheck SpellCheck { get; }
     public TypingIpc TypingIpc { get; }
     public FontManager FontManager { get; }
 
@@ -90,7 +92,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             GameStarted = Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
-            Config = Interface.GetPluginConfig() as Configuration ?? new Configuration();
+            Config = Hosting.LoadConfig();
 
 #pragma warning disable CS0618 // Type or member is obsolete
             // TODO Remove after 01.07.2026
@@ -133,6 +135,8 @@ public sealed class Plugin : IDalamudPlugin
             Ipc = new IpcManager();
             TypingIpc = new TypingIpc(this);
             ExtraChat = new ExtraChat();
+            Splitter = new Splitter();
+            SpellCheck = new SpellCheck();
             FontManager = new FontManager();
 
             MessageManager = new MessageManager(this); // Does it require UI?
@@ -218,6 +222,8 @@ public sealed class Plugin : IDalamudPlugin
 
         TypingIpc?.Dispose();
         ExtraChat?.Dispose();
+        Splitter?.Dispose();
+        SpellCheck?.Dispose();
         Ipc?.Dispose();
         MessageManager?.DisposeAsync().AsTask().Wait();
         Functions?.Dispose();
@@ -254,7 +260,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void SaveConfig()
     {
-        Interface.SavePluginConfig(Config);
+        Hosting.SaveConfig(Config);
     }
 
     public void LanguageChanged(string langCode)

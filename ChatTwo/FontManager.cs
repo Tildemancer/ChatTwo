@@ -31,7 +31,7 @@ public class FontManager
 
     public FontManager()
     {
-        var filePath = Path.Combine(Plugin.Interface.ConfigDirectory.FullName, "FFXIV_Lodestone_SSF.ttf");
+        var filePath = Path.Combine(Hosting.DataDirectory.FullName, "FFXIV_Lodestone_SSF.ttf");
         if (File.Exists(filePath))
         {
             GameSymFont = File.ReadAllBytes(filePath);

@@ -22,6 +22,9 @@ public class InputHandler
                                                    ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.CallbackHistory;
 
     public readonly Plugin Plugin;
+
+    /// <summary>Spelling marks and corrections for this input.</summary>
+    public readonly SpellUnderline Spelling;
     public readonly IChatWindow MainWindow;
 
     public readonly SendHandler SendHandler;
@@ -55,10 +58,19 @@ public class InputHandler
         ChunkHandler = new ChunkHandler(plugin);
         PayloadHandler = new PayloadHandler(this);
         AutoCompleteHandler = new AutoCompleteHandler(this);
+        Spelling = new SpellUnderline(plugin);
     }
+
+    /// <summary>
+    /// The line the current input would be sent as, kept for the preview. Set here
+    /// because this is where the active tab is known.
+    /// </summary>
+    public string ComposedLine { get; private set; } = string.Empty;
 
     public void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial)
     {
+        ComposedLine = SendHandler.ComposeLine(activeTab, ChatInput);
+
         var inputType = activeTab.CurrentChannel.UseTempChannel
             ? activeTab.CurrentChannel.TempChannel.ToChatType()
             : activeTab.CurrentChannel.Channel.ToChatType();
@@ -98,7 +110,13 @@ public class InputHandler
             {
                 var flags = InputFlags | (!isChatEnabled ? ImGuiInputTextFlags.ReadOnly : ImGuiInputTextFlags.None);
                 ImGui.SetNextItemWidth(inputWidth);
-                ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, 500, flags, Callback);
+                // 500 is the game's own limit; a splitter plugin can raise this and
+                // take responsibility for cutting the result up. Without one this is
+                // 500 and nothing changes.
+                ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, Plugin.Splitter.InputByteCap, flags, Callback);
+
+                // Drawn over the input, because it cannot colour its own contents.
+                Spelling.DrawForInput(ref ChatInput);
             }
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;
@@ -165,6 +183,11 @@ public class InputHandler
                 if (context)
                 {
                     using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, normalColor);
+
+                    // Above the rest, since a right click on a marked word is
+                    // almost certainly about that word.
+                    Spelling.DrawContextEntries(ref ChatInput);
+
                     if (ImGui.Selectable(Language.ChatLog_HideChat))
                         MainWindow.CurrentHideState = HideState.User;
                 }

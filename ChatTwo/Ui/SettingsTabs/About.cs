@@ -53,17 +53,29 @@ public sealed class About : ISettingsTab
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
-        ImGui.TextUnformatted(Language.Options_About_Discord_Thread);
-        ImGui.SameLine();
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "discordThread"))
-            Dalamud.Utility.Util.OpenLink("https://canary.discord.com/channels/581875019861328007/1224865018789761126");
+        // Support links are deliberately not shown on a modified build. Chat 2's
+        // maintainers did not write these changes, cannot reproduce problems caused
+        // by them, and should not be spending their time on our bugs. Credit above
+        // stays exactly as it is — this removes the support routing, not the
+        // attribution.
+        if (Hosting.IsHosted)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudOrange, Language.Options_About_Modified_Build);
+        }
+        else
+        {
+            ImGui.TextUnformatted(Language.Options_About_Discord_Thread);
+            ImGui.SameLine();
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "discordThread"))
+                Dalamud.Utility.Util.OpenLink("https://canary.discord.com/channels/581875019861328007/1224865018789761126");
 
-        ImGui.Spacing();
+            ImGui.Spacing();
 
-        ImGui.TextUnformatted(Language.Options_About_Github_Issues);
-        ImGui.SameLine();
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "githubIssues"))
-            Dalamud.Utility.Util.OpenLink("https://github.com/Infiziert90/ChatTwo/issues");
+            ImGui.TextUnformatted(Language.Options_About_Github_Issues);
+            ImGui.SameLine();
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "githubIssues"))
+                Dalamud.Utility.Util.OpenLink("https://github.com/Infiziert90/ChatTwo/issues");
+        }
 
         ImGuiHelpers.ScaledDummy(10.0f);
 

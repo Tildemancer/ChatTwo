@@ -54,8 +54,8 @@ public sealed class Database : ISettingsTab
         ImGui.Separator();
         ImGui.Spacing();
 
-        var old = new FileInfo(Path.Join(Plugin.Interface.ConfigDirectory.FullName, "chat.db"));
-        var migratedOld = new FileInfo(Path.Join(Plugin.Interface.ConfigDirectory.FullName, "chat-litedb.db"));
+        var old = new FileInfo(Path.Join(Hosting.DataDirectory.FullName, "chat.db"));
+        var migratedOld = new FileInfo(Path.Join(Hosting.DataDirectory.FullName, "chat-litedb.db"));
         if (old.Exists || migratedOld.Exists)
         {
             ImGui.TextUnformatted(Language.Options_Database_Old_Heading);

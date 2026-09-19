@@ -112,7 +112,7 @@ public class MessageManager : IAsyncDisposable
 
     public static string DatabasePath()
     {
-        return Path.Join(Plugin.Interface.ConfigDirectory.FullName, "chat-sqlite.db");
+        return Path.Join(Hosting.DataDirectory.FullName, "chat-sqlite.db");
     }
 
     private void Logout(int _, int __)
