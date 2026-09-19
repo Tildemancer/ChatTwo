@@ -4,17 +4,11 @@ namespace ChatTwo.Ipc;
 
 /// <summary>
 /// Optional cooperation with a plugin that splits over-length messages.
-///
-/// The game refuses a chat line longer than 500 bytes, so Chat 2 sizes its input
-/// box to match. When a splitter is present it can accept more and hand anything
-/// too long over to be cut up and sent in order.
-///
-/// Every call falls back to Chat 2's normal behaviour, so with no splitter
-/// installed nothing here changes anything.
+/// Every call falls back to Chat 2's normal behaviour when none is installed.
 /// </summary>
 public sealed class Splitter : IDisposable
 {
-    /// <summary>The limit the game itself enforces, and Chat 2's behaviour without a splitter.</summary>
+    /// <summary>Bytes, not characters. The limit the game itself enforces.</summary>
     public const int DefaultByteCap = 500;
 
     /// <summary>The API version this was written against.</summary>
@@ -26,7 +20,7 @@ public sealed class Splitter : IDisposable
     private ICallGateSubscriber<string, int, List<string>> SplitLineGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
-    /// <summary>Cached so it is not an IPC call every frame the input box is drawn.</summary>
+    /// <summary>Cached; the input box is drawn every frame.</summary>
     private int CachedCap { get; set; } = DefaultByteCap;
 
     public Splitter()
@@ -37,22 +31,16 @@ public sealed class Splitter : IDisposable
         SplitLineGate = Plugin.Interface.GetIpcSubscriber<string, int, List<string>>("TildeTools.Split.SplitLine");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Split.Available");
 
-        // Fired when the splitter loads, so a Chat 2 that started first notices it.
+        // Fires when the splitter loads after Chat 2.
         AvailableGate.Subscribe(Refresh);
 
         Refresh();
     }
 
-    /// <summary>
-    /// How many bytes the message box should accept. Falls back to the game's own
-    /// limit whenever no compatible splitter answers.
-    /// </summary>
+    /// <summary>How many bytes the message box should accept.</summary>
     public int InputByteCap => CachedCap;
 
-    /// <summary>
-    /// Re-reads the limit. Cheap enough to call when the plugin list changes, and
-    /// it must be called then, because the splitter may have just appeared.
-    /// </summary>
+    /// <summary>Re-reads the limit. Call when the plugin list changes.</summary>
     public void Refresh()
     {
         CachedCap = QueryCap();
@@ -71,33 +59,24 @@ public sealed class Splitter : IDisposable
             IsAvailable = true;
             var cap = InputByteCapGate.InvokeFunc();
 
-            // Never shrink below what the game allows on the word of another plugin.
+            // Never shrink below the game's limit on another plugin's word.
             return cap < DefaultByteCap ? DefaultByteCap : cap;
         }
         catch
         {
-            // No splitter installed, or it is an incompatible version.
+            // No splitter, or an incompatible version.
             IsAvailable = false;
             return DefaultByteCap;
         }
     }
 
     /// <summary>
-    /// Offers a finished chat line, e.g. <c>/p some long text</c>, to the splitter.
-    /// Returns true if it took ownership and will send it; false means Chat 2 should
-    /// send it as it normally would.
-    /// </summary>
-    /// <summary>
-    /// True when a compatible splitter is installed and answering. Recorded when
-    /// asked rather than inferred from the cap, which would read as "absent" for
-    /// anyone who set their limit to exactly the game's own.
+    /// True when a compatible splitter is answering. Recorded rather than inferred
+    /// from the cap, which would read as "absent" at exactly the game's own limit.
     /// </summary>
     public bool IsAvailable { get; private set; }
 
-    /// <summary>
-    /// Asks how a finished chat line would divide up, for showing what a send will
-    /// actually produce. Null when there is no splitter or it declined.
-    /// </summary>
+    /// <summary>Preview of how a chat line would divide up. Null if the splitter declined.</summary>
     public List<string>? Split(string line)
     {
         try
@@ -111,6 +90,7 @@ public sealed class Splitter : IDisposable
         }
     }
 
+    /// <summary>Offers a chat line to the splitter. True means it will send it instead.</summary>
     public bool TrySend(string line)
     {
         try

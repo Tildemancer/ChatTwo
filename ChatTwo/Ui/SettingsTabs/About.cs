@@ -39,13 +39,15 @@ public sealed class About : ISettingsTab
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
+        // Named rather than taken from the manifest: inside another plugin the
+        // manifest says whoever built that, not who wrote this.
         ImGui.TextUnformatted(Language.Options_About_Authors);
         ImGui.SameLine();
-        ImGui.TextColored(ImGuiColors.ParsedGold, Plugin.Interface.Manifest.Author);
+        ImGui.TextColored(ImGuiColors.ParsedGold, Hosting.IsHosted ? "Anna and Infi" : Plugin.Interface.Manifest.Author);
 
         ImGui.TextUnformatted(Language.Options_About_Discord);
         ImGui.SameLine();
-        ImGui.TextColored(ImGuiColors.ParsedGold, "@infi");
+        ImGui.TextColored(ImGuiColors.ParsedGold, Hosting.IsHosted ? "@tildemancer" : "@infi");
 
         ImGui.TextUnformatted(Language.Options_About_Version);
         ImGui.SameLine();
@@ -79,10 +81,42 @@ public sealed class About : ISettingsTab
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
-        ImGui.TextUnformatted(Language.Options_About_CrowdIn);
-        ImGui.SameLine();
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "crowdin"))
-            Dalamud.Utility.Util.OpenLink("https://crowdin.com/project/chattwo");
+        // Translation help goes to Chat 2's own project, and translations of strings
+        // this build has changed would never reach it. Credit for the people whose
+        // work this is takes its place.
+        if (Hosting.IsHosted)
+        {
+            ImGui.TextUnformatted("Chat 2 was written by");
+            ImGui.SameLine();
+            ImGui.TextColored(ImGuiColors.ParsedGold, "Anna");
+            ImGui.SameLine();
+            ImGui.TextUnformatted("and is maintained by");
+            ImGui.SameLine();
+            ImGui.TextColored(ImGuiColors.ParsedGold, "Infi");
+            ImGui.TextUnformatted(".");
+
+            ImGui.Spacing();
+
+            if (ImGui.Button("Anna's Ko-fi"))
+                Dalamud.Utility.Util.OpenLink("https://ko-fi.com/lojewalo");
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Infi's Ko-fi"))
+                Dalamud.Utility.Util.OpenLink("https://ko-fi.com/infiii");
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Source"))
+                Dalamud.Utility.Util.OpenLink("https://github.com/Infiziert90/ChatTwo");
+        }
+        else
+        {
+            ImGui.TextUnformatted(Language.Options_About_CrowdIn);
+            ImGui.SameLine();
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "crowdin"))
+                Dalamud.Utility.Util.OpenLink("https://crowdin.com/project/chattwo");
+        }
 
         ImGui.Spacing();
 

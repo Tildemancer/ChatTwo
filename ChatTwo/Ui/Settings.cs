@@ -43,9 +43,14 @@ public sealed class SettingsWindow : Window
             new Database(Plugin, Mutable),
             new Webinterface(Plugin, Mutable),
             new Miscellaneous(Mutable),
-            new Changelog(Mutable),
             new About()
         ];
+
+        // Chat 2's changelog tab reads the changelog out of the plugin manifest and
+        // says "not implemented" above it. Hosted, that manifest is the host's, so the
+        // tab is empty and mislabelled at once.
+        if (!Hosting.IsHosted)
+            Tabs.Insert(Tabs.Count - 1, new Changelog(Mutable));
 
         RespectCloseHotkey = false;
         DisableWindowSounds = true;

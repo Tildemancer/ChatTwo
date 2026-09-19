@@ -25,11 +25,8 @@ public partial class InputPreview : Window
     public float PreviewHeight;
 
     /// <summary>
-    /// The input the preview was last built from.
-    ///
-    /// Compared as text rather than by length: an edit that happens to keep the
-    /// same length, such as correcting a misspelling, would otherwise leave the
-    /// preview showing the old message.
+    /// The input the preview was last built from. Compared as text, not length:
+    /// a same-length edit must still rebuild.
     /// </summary>
     private string LastInput = string.Empty;
     private Message? PreviewMessage;
@@ -72,8 +69,6 @@ public partial class InputPreview : Window
             return;
         }
 
-        // What the letters drawn for the whole message are counted against, unless a
-        // part temporarily stands in for it.
         SetSpellSource( InputHandler.ChatInput.Trim() );
 
         if (PreviewMessage == null || LastInput != InputHandler.ChatInput)
@@ -104,10 +99,7 @@ public partial class InputPreview : Window
     /// <summary>The parts a splitter would break this message into, if any.</summary>
     private List<string>? SplitParts;
 
-    /// <summary>
-    /// Those same parts as messages, so each is previewed the way it will arrive
-    /// rather than as a line of plain text beneath the real preview.
-    /// </summary>
+    /// <summary>Those same parts as messages, so each previews the way it will arrive.</summary>
     private List<Message>? SplitMessages;
 
     private string LastSplitInput = string.Empty;
@@ -116,8 +108,8 @@ public partial class InputPreview : Window
     private bool Measuring;
 
     /// <summary>
-    /// Asks the splitter how the message divides up, when it has changed. Only on
-    /// change: this crosses to another plugin, and the preview draws every frame.
+    /// Asks the splitter how the message divides up, only on change: this is a
+    /// cross-plugin call and the preview draws every frame.
     /// </summary>
     private void UpdateSplitParts()
     {
@@ -132,8 +124,7 @@ public partial class InputPreview : Window
         if (!InputHandler.Plugin.Splitter.IsAvailable || line.Length == 0)
             return;
 
-        // One part means nothing is being split, and a list of one tells the reader
-        // nothing they cannot see in the box.
+        // One part means nothing is being split.
         var parts = InputHandler.Plugin.Splitter.Split(line);
         if (parts is not { Count: > 1 })
             return;
@@ -155,7 +146,6 @@ public partial class InputPreview : Window
         var pos = InputHandler.MainWindow.LastWindowPos;
         var size = InputHandler.MainWindow.LastWindowSize;
 
-        // Several columns wide once the parts stop fitting in one.
         var width = PreviewWidth > 0 ? PreviewWidth : size.X;
         Size = new Vector2(width, PreviewHeight);
 
@@ -171,14 +161,8 @@ public partial class InputPreview : Window
     }
 
     /// <summary>
-    /// Moves the preview beside the chat window when it will not fit above or below
-    /// it.
-    ///
-    /// A long message makes a tall preview, and a chat window near the top or bottom
-    /// of the screen leaves nowhere for it to grow into, so it grows off the edge and
-    /// the parts furthest from the window are the ones lost. Put beside the window
-    /// instead it has the full height of the screen to use. It goes to whichever side
-    /// has the room, preferring the right.
+    /// Moves the preview beside the chat window when it will not fit above or below,
+    /// preferring the right.
     /// </summary>
     private Vector2 KeepOnScreen(Vector2 wanted, Vector2 windowPos, float windowWidth, float previewWidth)
     {
@@ -187,16 +171,13 @@ public partial class InputPreview : Window
         if (wanted.Y >= 0 && wanted.Y + PreviewHeight <= screen.Y)
             return wanted;
 
-        // Beside the chat window: to the right, unless the preview will not fit there
-        // and will on the left.
         var right = windowPos.X + windowWidth;
         var fitsRight = right + previewWidth <= screen.X;
         var fitsLeft = windowPos.X - previewWidth >= 0;
 
         var x = fitsRight || !fitsLeft ? right : windowPos.X - previewWidth;
 
-        // Beside is only an improvement if the whole of it is on screen, so it starts
-        // level with the chat window and slides up only as far as it must.
+        // Level with the chat window, sliding up only as far as it must to stay on screen.
         var top = Math.Clamp(windowPos.Y, 0, Math.Max(0, screen.Y - PreviewHeight));
 
         return new Vector2(Math.Clamp(x, 0, Math.Max(0, screen.X - previewWidth)), top);
@@ -222,8 +203,7 @@ public partial class InputPreview : Window
         // We Pre-draw this once to get the actual height :HideThePain:
         PreviewHeight = 0;
 
-        // The width text actually gets, inside the window's padding. Measuring against
-        // anything else gives heights that do not match how it will be drawn.
+        // The width text actually gets, inside the window's padding.
         var sidePadding = ImGui.GetStyle().WindowPadding.X * 2;
         ColumnWidth = Math.Max(120f, InputHandler.MainWindow.LastWindowSize.X - sidePadding);
         PreviewWidth = ColumnWidth + sidePadding;
@@ -231,8 +211,7 @@ public partial class InputPreview : Window
 
         var padding = IsWindowMode ? ImGui.GetStyle().WindowPadding.Y * 2 : 0;
 
-        // Nothing interactive during the measure: it happens off-screen every frame,
-        // and a second set of the same ids would fight with the real one.
+        // Nothing interactive during the measure: duplicate ids would fight the real draw.
         Measuring = true;
         try
         {
@@ -256,11 +235,8 @@ public partial class InputPreview : Window
     }
 
     /// <summary>
-    /// Works out how tall each part is, then fills columns with them.
-    ///
-    /// A long enough message makes a preview taller than the screen, and a window
-    /// cannot show what is past its own bottom edge. Rather than let the far end fall
-    /// off, the parts continue in another column to the right, as many as it takes.
+    /// Measures each part, then fills columns with them, spilling into a new column
+    /// to the right rather than off the bottom of the screen.
     /// </summary>
     private void PackColumns(float padding)
     {
@@ -283,8 +259,7 @@ public partial class InputPreview : Window
             }
         });
 
-        // Nothing measured, but there are parts to show. Rather than size the window
-        // to the header and hide them all, give them one column and the full height.
+        // Nothing measured, but there are parts to show: one column, full height.
         if (heights.Count < SplitMessages!.Count)
         {
             Columns.Add([.. Enumerable.Range(0, SplitMessages.Count)]);
@@ -299,8 +274,7 @@ public partial class InputPreview : Window
 
         for (var i = 0; i < heights.Count; i++)
         {
-            // A part taller than the screen on its own still has to go somewhere, so
-            // it starts a column and overflows it rather than looping forever.
+            // A part taller than the screen overflows its column rather than looping forever.
             if (current.Count > 0 && used + heights[i] > available)
             {
                 Columns.Add(current);
@@ -324,22 +298,16 @@ public partial class InputPreview : Window
     }
 
     /// <summary>
-    /// Runs a block of drawing off-screen, constrained to one column's width, and
-    /// reports how tall it came out.
-    ///
-    /// Inside a child of that width, because text wraps against the region it is
-    /// drawn in: measured against a window several columns wide, every part would
-    /// come out shorter than it will really be.
+    /// Draws a block into a hidden child of one column's width and reports its height.
+    /// The child's width matters: text wraps against the region it is drawn in.
     /// </summary>
     private float MeasureColumn(Action draw)
     {
         var restore = ImGui.GetCursorPos();
         var height = 0f;
 
-        // Left where the cursor already is, not moved off somewhere out of the way:
-        // a child placed outside its parent is culled, and a culled child draws
-        // nothing and reports nothing, which measures every part as no height at all.
-        // One pixel tall is enough to stay visible and clip everything inside it.
+        // Left at the cursor, one pixel tall: a child moved outside its parent is
+        // culled, and a culled child measures everything as zero height.
         using (var child = ImRaii.Child("##preview-measure", new Vector2(ColumnWidth, 1f), false,
                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoInputs))
         {
@@ -353,7 +321,7 @@ public partial class InputPreview : Window
             }
         }
 
-        // Back to the top, so the real drawing covers the sliver this left behind.
+        // Back to the top, so the real drawing covers the sliver left behind.
         ImGui.SetCursorPos(restore);
         return height;
     }
@@ -372,11 +340,8 @@ public partial class InputPreview : Window
             return;
         }
 
-        // As a tooltip nothing measures the parts, because the tooltip sizes itself.
-        // One column then, however long it comes out. The mode is checked as well as
-        // the count, because columns worked out while the preview was a window are
-        // still here after a switch to tooltip, and laying a tooltip out in columns
-        // sized for the chat window collapses it to a sliver.
+        // A tooltip sizes itself, so it gets one column. The mode is checked as well
+        // as the count: columns from window mode linger after a switch to tooltip.
         if (!IsWindowMode || Columns.Count == 0)
         {
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
@@ -406,7 +371,7 @@ public partial class InputPreview : Window
 
             using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
 
-            // Only above the first column: it names the whole preview, not the column.
+            // Only above the first column: it names the whole preview.
             if (c == 0)
                 DrawSplitHeader();
 
@@ -418,24 +383,14 @@ public partial class InputPreview : Window
     }
 
     /// <summary>
-    /// The text the letters being drawn belong to, which spelling positions are
-    /// counted against.
-    ///
-    /// For the whole-message preview this is the trimmed input, so offsets line up
-    /// with the box. For one part of a split message it is that part, which is why no
-    /// offset has to be mapped back: each part is checked in its own right, and a
-    /// correction is applied to the input by the word rather than by position.
+    /// The text spelling positions are counted against: the trimmed input, or one
+    /// part of a split message while that part is drawn.
     /// </summary>
     private string SpellSource = string.Empty;
 
     /// <summary>
     /// The misspelled word at each character of <see cref="SpellSource"/>, or null.
-    ///
-    /// Worked out once when the source changes rather than per letter. The letters are
-    /// drawn one at a time, the whole preview is laid out more than once a frame, and
-    /// asking per letter meant a cross-plugin spellcheck per letter — which the single
-    /// cached answer could not absorb, because each part of a split message evicted the
-    /// one before it.
+    /// Built once per source change: per-letter would be a cross-plugin call per letter.
     /// </summary>
     private string?[] SpellMarks = [];
 
@@ -467,18 +422,12 @@ public partial class InputPreview : Window
     private string? MisspelledWordAt(int position) =>
         position >= 0 && position < SpellMarks.Length ? SpellMarks[position] : null;
 
-    /// <summary>
-    /// The correction menu for a word right-clicked in the preview. Its own popup
-    /// rather than the input's, since this is a separate window with no menu of its
-    /// own to add to.
-    /// </summary>
     /// <summary>Set when a marked letter is right-clicked, wherever it was drawn.</summary>
     private bool OpenSpellingPopup;
 
     private void DrawSpellingPopup()
     {
-        // Opened here rather than where the click happened, so the id matches the
-        // BeginPopup below however deeply nested the letter was.
+        // Opened here, not at the click, so the id matches the BeginPopup below.
         if (OpenSpellingPopup)
         {
             OpenSpellingPopup = false;
@@ -489,18 +438,13 @@ public partial class InputPreview : Window
         if (!popup.Success)
             return;
 
-        // Corrections apply to the real input, not the trimmed copy the preview
-        // is built from.
+        // Corrections apply to the real input, not the trimmed copy.
         InputHandler.Spelling.DrawContextEntries(ref InputHandler.ChatInput);
     }
 
     /// <summary>
-    /// Previews the separate messages a long one will be sent as, each drawn the way
-    /// a chat line is drawn.
-    ///
-    /// This replaces the whole-message preview rather than sitting under it. Showing
-    /// both meant reading the same text twice, once as it is typed and once as it
-    /// arrives, and only the second is what anyone will actually see.
+    /// Heads the per-part preview, which replaces the whole-message one rather than
+    /// sitting above it.
     /// </summary>
     private void DrawSplitHeader()
     {
@@ -524,20 +468,17 @@ public partial class InputPreview : Window
 
         using var indent = ImRaii.PushIndent();
 
-        // Both saved, not just the text: the marks belong to it, and putting the text
-        // back without them would leave the message marked as though it were the part.
+        // Both saved: the marks belong to the source and must be restored with it.
         var previousSource = SpellSource;
         var previousMarks = SpellMarks;
         MapsToInput = false;
 
         try
         {
-            // Checked against the part rather than the input, so a mark sits under
-            // the right letters without any offset having to be worked out.
+            // Checked against the part, so marks need no offset mapping.
             SetSpellSource(parts[index]);
 
-            // Ids are spaced well apart per part, so the same letter in two parts
-            // is two items rather than one that ImGui cannot tell apart.
+            // Ids spaced well apart per part, so the same letter in two parts is two items.
             DrawChunksPreview(messages[index].Content, handler, unique: 100000 * (index + 1));
         }
         finally
@@ -566,10 +507,9 @@ public partial class InputPreview : Window
             }
             else if (chunks[i].Link is EmotePayload && Plugin.Config.ShowEmotes)
             {
-                // Emote payloads seem to not automatically put newlines, which
-                // is an issue when modern mode is disabled.
+                // Emote payloads don't add newlines themselves, which breaks
+                // non-modern mode.
                 ImGui.SameLine();
-                // Use default ImGui behavior for newlines.
                 ImGui.TextUnformatted("");
             }
         }
@@ -598,11 +538,11 @@ public partial class InputPreview : Window
             var emoteSize = ImGui.CalcTextSize("W");
             emoteSize = emoteSize with { Y = emoteSize.X } * 1.5f;
 
-            // TextWrap doesn't work for emotes, so we have to wrap them manually
+            // TextWrap doesn't work for emotes, so wrap manually.
             if (ImGui.GetContentRegionAvail().X < emoteSize.X)
                 ImGui.NewLine();
 
-            // We only draw a dummy if it is still loading, in case it failed, we draw the actual name
+            // Dummy while loading; on failure fall through to the name.
             var image = EmoteCache.GetEmote(emotePayload.Code);
             if (image is { Failed: false })
             {
@@ -655,15 +595,12 @@ public partial class InputPreview : Window
                 if (ImGui.Selectable($"{letter}##{CursorPosition + unique}", false, ImGuiSelectableFlags.None, letterSize)
                     && MapsToInput)
                 {
-                    // Only where a letter's place in the drawn text is its place in the
-                    // box. A part of a split message carries markers the box does not,
-                    // so its letters sit at no particular position in the input.
+                    // Only when the drawn text is the input itself: a split part carries
+                    // markers the box does not, so its letters map to no input position.
                     SelectedCursorPos = CursorPosition;
                     InputHandler.FocusedPreview = true;
                 }
 
-                // Each letter knows its place in the message, so a misspelled word
-                // can be marked exactly where it sits rather than listed separately.
                 if (MisspelledWordAt(CursorPosition - 1) is { } misspelled)
                 {
                     SpellUnderline.UnderlineLastItem();
@@ -672,13 +609,8 @@ public partial class InputPreview : Window
                     {
                         InputHandler.Spelling.SetPendingWord(misspelled);
 
-                        // Asked for here and opened at the window's root, because a
-                        // popup is found by the id stack it was opened under. A part is
-                        // drawn inside a column child and under a pushed id, so opening
-                        // it here would name a popup that the matching BeginPopup —
-                        // which runs at the root, after the children close — can never
-                        // find. That is why corrections stopped working once the
-                        // preview grew columns.
+                        // Flagged, not opened here: a popup is found by the id stack it
+                        // was opened under, and this runs inside a child under a pushed id.
                         OpenSpellingPopup = true;
                     }
                 }

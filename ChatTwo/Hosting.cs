@@ -5,13 +5,8 @@ using Newtonsoft.Json.Serialization;
 namespace ChatTwo;
 
 /// <summary>
-/// Where Chat 2 keeps its settings and data.
-///
-/// Normally that is its own plugin folder. When Chat 2 is compiled into another
-/// plugin, Dalamud's config directory belongs to that host instead, and using it
-/// would both lose the existing message database and overwrite the host's settings
-/// file. Pointing this at the original folder keeps the data where it has always
-/// been, so the standalone plugin and a hosted copy read the same history.
+/// Where Chat 2 keeps its settings and data. When hosted inside another plugin,
+/// points at Chat 2's own folder rather than the host's config directory.
 /// </summary>
 public static class Hosting
 {
@@ -35,11 +30,7 @@ public static class Hosting
 
     private static string ConfigPath => Path.Join(DataDirectory.Parent?.FullName ?? DataDirectory.FullName, "ChatTwo.json");
 
-    /// <summary>
-    /// Matches how Dalamud writes plugin settings, so the same file is readable
-    /// whether Chat 2 is running on its own or inside a host. The stored objects
-    /// carry a "$type" and will not load without the matching type handling.
-    /// </summary>
+    /// <summary>Matches how Dalamud writes plugin settings; stored objects carry a "$type".</summary>
     private static readonly JsonSerializerSettings SerializerSettings = new()
     {
         TypeNameHandling = TypeNameHandling.Objects,
@@ -48,13 +39,8 @@ public static class Hosting
     };
 
     /// <summary>
-    /// Resolves the types named in the settings file against the copy of Chat 2
-    /// that is actually running.
-    ///
-    /// Left to itself the serializer looks a type up by assembly name, which loads
-    /// a second copy of this assembly into a different context. The result is two
-    /// types with identical names that the runtime considers unrelated, and an
-    /// error saying a type is not compatible with itself.
+    /// Resolves types named in the settings file against the running copy of Chat 2;
+    /// without this the serializer loads a second copy of the assembly.
     /// </summary>
     private sealed class LocalAssemblyBinder : DefaultSerializationBinder
     {
@@ -63,12 +49,8 @@ public static class Hosting
 
         public override Type BindToType(string? assemblyName, string typeName)
         {
-            // Resolved as a whole rather than by testing our assembly first,
-            // because the name can be a generic owned by the runtime whose
-            // arguments are ours: Dictionary<ChatType, ChatSource> belongs to
-            // CoreLib, but both of its arguments must come from this copy. Type
-            // resolution calls the hook for every assembly named anywhere in the
-            // name, so nesting is handled wherever it appears.
+            // Resolved whole, not by testing our assembly first: a runtime generic
+            // can have our types as its arguments.
             var qualified = assemblyName == null ? typeName : $"{typeName}, {assemblyName}";
 
             var resolved = Type.GetType(qualified, ResolveAssembly, ResolveType, throwOnError: false);
@@ -89,18 +71,10 @@ public static class Hosting
                 : assembly.GetType(name, throwOnError: false, ignoreCase);
     }
 
-    /// <summary>
-    /// Reads the configuration. When hosted this cannot go through Dalamud, because
-    /// Dalamud would hand back the host plugin's configuration object.
-    /// </summary>
-    /// <summary>
-    /// Set when settings existed but could not be read. Saving is then refused, so
-    /// a file that failed to load is never replaced by the defaults that stood in
-    /// for it. Losing settings to a read bug is bad; overwriting them afterwards
-    /// makes it unrecoverable.
-    /// </summary>
+    /// <summary>Settings existed but could not be read; saving is refused so defaults never overwrite them.</summary>
     private static bool LoadFailed;
 
+    /// <summary>Reads the configuration. When hosted, Dalamud would return the host's config object.</summary>
     public static Configuration LoadConfig()
     {
         if (!IsHosted)
@@ -153,8 +127,7 @@ public static class Hosting
             var path = ConfigPath;
             var json = JsonConvert.SerializeObject(config, Formatting.Indented, SerializerSettings);
 
-            // Written beside the target and moved into place, so an interrupted or
-            // failed write cannot leave a half-file where the settings used to be.
+            // Write beside the target and move into place, so a failed write leaves no half-file.
             var temporary = path + ".tmp";
             File.WriteAllText(temporary, json);
 

@@ -5,17 +5,9 @@ using Dalamud.Interface.Utility;
 
 namespace ChatTwo.Ui;
 
-/// <summary>
-/// Marks misspelled words with a red underline and offers corrections on them.
-///
-/// ImGui's text input cannot colour part of its contents, so in the input the
-/// marks are drawn over the top, positioned by measuring the text. In the preview
-/// the letters are already drawn one at a time with their position in the message
-/// known, so each one can simply be underlined where it sits.
-/// </summary>
+/// <summary>Marks misspelled words with a red underline and offers corrections on them.</summary>
 public sealed class SpellUnderline
 {
-    /// <summary>Bright enough to read at a glance against chat's own colours.</summary>
     private static readonly Vector4 Colour = new(1f, 0.25f, 0.25f, 1f);
 
     private const float Drop = 1.5f;
@@ -23,7 +15,7 @@ public sealed class SpellUnderline
 
     private readonly Plugin Plugin;
 
-    /// <summary>The word a menu is open for, kept while the popup lives.</summary>
+    /// <summary>The word a menu is open for.</summary>
     private string PendingWord = string.Empty;
 
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
@@ -43,13 +35,8 @@ public sealed class SpellUnderline
     }
 
     /// <summary>
-    /// Underlines the misspellings in the input just drawn, and offers corrections
-    /// on right-click. Call immediately after the input, while its box is current.
-    ///
-    /// The marks only hold while the whole text is visible: once the input scrolls
-    /// sideways the characters on screen no longer start at the beginning, and the
-    /// scroll position is not exposed. Rather than mark the wrong words, nothing is
-    /// drawn past that point.
+    /// Underlines the misspellings in the input just drawn, and offers corrections on
+    /// right-click. Call immediately after the input, while its box is current.
     /// </summary>
     public void DrawForInput(ref string text)
     {
@@ -65,6 +52,8 @@ public sealed class SpellUnderline
         var size = ImGui.GetItemRectSize();
 
         var inset = ImGui.GetStyle().FramePadding.X;
+        // Once the input scrolls sideways the on-screen text no longer starts at index 0
+        // and the scroll offset is not exposed, so draw nothing rather than the wrong words.
         if (ImGui.CalcTextSize(text).X > size.X - inset * 2)
             return;
 
@@ -86,9 +75,7 @@ public sealed class SpellUnderline
 
             drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, Thickness * ImGuiHelpers.GlobalScale);
 
-            // Latched on the click and left alone afterwards. Clearing it while the
-            // pointer is elsewhere would empty the menu the moment it opened, since
-            // by then the pointer is over the menu and not the input.
+            // Latched on the click: clearing it later would empty the menu as it opens.
             if (hovered && rightClicked && mouseX >= left && mouseX <= right)
                 clickedWord = misspelling.Word(text);
         }
@@ -101,11 +88,8 @@ public sealed class SpellUnderline
     public void SetPendingWord(string word) => PendingWord = word;
 
     /// <summary>
-    /// Adds correction entries to a context menu that is already open, for the word
+    /// Adds correction entries to the caller's already-open context menu, for the word
     /// the pointer was last over. Does nothing when that was not a marked word.
-    ///
-    /// Added to the caller's own menu rather than opening a second one, so a right
-    /// click does not have two menus competing for it.
     /// </summary>
     public bool DrawContextEntries(ref string text)
     {
@@ -134,10 +118,7 @@ public sealed class SpellUnderline
         return true;
     }
 
-    /// <summary>
-    /// Swaps the first whole-word occurrence, so correcting one word cannot quietly
-    /// alter a longer one that happens to contain it.
-    /// </summary>
+    /// <summary>Swaps the first whole-word occurrence, never one inside a longer word.</summary>
     public static string ReplaceWord(string text, string word, string replacement)
     {
         for (var i = text.IndexOf(word, StringComparison.Ordinal); i >= 0;

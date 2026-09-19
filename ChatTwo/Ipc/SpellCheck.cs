@@ -12,11 +12,8 @@ public readonly record struct Misspelling(int Start, int Length)
 }
 
 /// <summary>
-/// Optional spellchecking from a plugin that provides a dictionary.
-///
-/// Chat 2 has no dictionary of its own, so this does nothing at all unless one is
-/// installed. Results are cached per string: the preview draws every frame and
-/// checking crosses into another plugin.
+/// Optional spellchecking from a plugin that provides a dictionary; inert when none is installed.
+/// Results are cached per string, since the preview redraws every frame.
 /// </summary>
 public sealed class SpellCheck : IDisposable
 {
@@ -30,18 +27,12 @@ public sealed class SpellCheck : IDisposable
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
     /// <summary>
-    /// Answers already given, keyed by the text they were about.
-    ///
-    /// More than one, because a split message is checked a part at a time and a single
-    /// remembered answer would be thrown away by the very next part — turning what
-    /// should be one check per edit into one per part per pass, every frame.
+    /// Answers already given, keyed by the text they were about. Holds many, not one: a split
+    /// message is checked a part at a time and each part would evict the last.
     /// </summary>
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
 
-    /// <summary>
-    /// Emptied rather than aged. Keys pile up a keystroke at a time, and there is
-    /// nothing to be gained from remembering half-typed words.
-    /// </summary>
+    /// <summary>Cleared wholesale rather than aged; the keys are half-typed words.</summary>
     private const int MostToRemember = 64;
 
     public SpellCheck()
@@ -63,7 +54,7 @@ public sealed class SpellCheck : IDisposable
     {
         Refresh();
 
-        // A dictionary arriving changes every previous answer.
+        // A new dictionary invalidates every cached answer.
         Cached.Clear();
         LastSuggested = string.Empty;
     }
@@ -80,13 +71,10 @@ public sealed class SpellCheck : IDisposable
         }
     }
 
-    /// <summary>
-    /// The misspelled words in a string, or an empty list when no checker is
-    /// installed.
-    /// </summary>
-    /// <summary>Reports once whether a checker answered, so a silent nothing explains itself.</summary>
+    /// <summary>Logs the checker's presence once.</summary>
     private bool ReportedState;
 
+    /// <summary>The misspelled words in a string, or an empty list when no checker is installed.</summary>
     public IReadOnlyList<Misspelling> Check(string text)
     {
         if (!ReportedState && !string.IsNullOrEmpty(text))
@@ -127,12 +115,8 @@ public sealed class SpellCheck : IDisposable
     private IReadOnlyList<string> LastSuggestions = [];
 
     /// <summary>
-    /// Words that might have been meant instead, best first.
-    ///
-    /// Cached because the menu asks again on every frame it is open, and working out
-    /// the answer means searching the dictionary for words that sound or look like
-    /// this one — tens of milliseconds, which is fine once and ruinous sixty times a
-    /// second.
+    /// Words that might have been meant instead, best first. Cached: the open menu asks every
+    /// frame and a lookup costs tens of milliseconds.
     /// </summary>
     public IReadOnlyList<string> Suggest(string word)
     {
@@ -161,7 +145,7 @@ public sealed class SpellCheck : IDisposable
         }
         catch
         {
-            // Nothing useful to do; the word simply stays flagged.
+            // The word stays flagged.
         }
 
         Cached.Clear();
@@ -169,10 +153,8 @@ public sealed class SpellCheck : IDisposable
     }
 
     /// <summary>
-    /// Leaves a word alone until the game is restarted, without learning it.
-    ///
-    /// Handed to the checker rather than filtered here, so every text box that
-    /// checks spelling agrees about which words are being overlooked.
+    /// Leaves a word alone until the game is restarted, without learning it. Handed to the
+    /// checker, not filtered here, so every text box agrees on what is ignored.
     /// </summary>
     public void Ignore(string word)
     {
@@ -182,7 +164,7 @@ public sealed class SpellCheck : IDisposable
         }
         catch
         {
-            // Nothing useful to do; the word simply stays flagged.
+            // The word stays flagged.
         }
 
         Cached.Clear();
