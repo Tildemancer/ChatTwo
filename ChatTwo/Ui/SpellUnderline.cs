@@ -1,3 +1,5 @@
+// TildeTools: written for this fork, not part of upstream Chat 2.
+
 using System.Numerics;
 using ChatTwo.Ipc;
 using Dalamud.Bindings.ImGui;
@@ -15,12 +17,10 @@ public sealed class SpellUnderline
 
     private readonly Plugin Plugin;
 
-    /// <summary>The word a menu is open for.</summary>
     private string PendingWord = string.Empty;
 
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
 
-    /// <summary>Draws a line under the item just drawn.</summary>
     public static void UnderlineLastItem()
     {
         var min = ImGui.GetItemRectMin();
@@ -75,7 +75,7 @@ public sealed class SpellUnderline
 
             drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, Thickness * ImGuiHelpers.GlobalScale);
 
-            // Latched on the click: clearing it later would empty the menu as it opens.
+            // Latch it on the click. Turns out clearing it later empties the menu just as it opens.
             if (hovered && rightClicked && mouseX >= left && mouseX <= right)
                 clickedWord = misspelling.Word(text);
         }
@@ -84,7 +84,6 @@ public sealed class SpellUnderline
             PendingWord = clickedWord;
     }
 
-    /// <summary>Sets the word a menu should offer corrections for.</summary>
     public void SetPendingWord(string word) => PendingWord = word;
 
     /// <summary>
@@ -118,7 +117,7 @@ public sealed class SpellUnderline
         return true;
     }
 
-    /// <summary>Swaps the first whole-word occurrence, NEVER one inside a longer word.</summary>
+    /// <summary>Swaps the first whole-word occurrence, never one sitting inside a longer word.</summary>
     public static string ReplaceWord(string text, string word, string replacement)
     {
         for (var i = text.IndexOf(word, StringComparison.Ordinal); i >= 0;

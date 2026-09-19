@@ -23,7 +23,6 @@ public class InputHandler
 
     public readonly Plugin Plugin;
 
-    /// <summary>Spelling marks and corrections for this input.</summary>
     public readonly SpellUnderline Spelling;
     public readonly IChatWindow MainWindow;
 
@@ -61,9 +60,10 @@ public class InputHandler
         Spelling = new SpellUnderline(plugin);
     }
 
+    // TildeTools
     /// <summary>
-    /// The line the current input would be sent as, kept for the preview. Set here
-    /// because this is where the active tab is known.
+    /// The line the current input would go out as, for the preview. Set here because
+    /// this is where we know which tab is active.
     /// </summary>
     public string ComposedLine { get; private set; } = string.Empty;
 
@@ -110,11 +110,13 @@ public class InputHandler
             {
                 var flags = InputFlags | (!isChatEnabled ? ImGuiInputTextFlags.ReadOnly : ImGuiInputTextFlags.None);
                 ImGui.SetNextItemWidth(inputWidth);
-                // 500 is the game's own limit; a splitter plugin can raise this and
-                // take responsibility for cutting the result up. Without one this is
-                // 500 and nothing changes.
+                // TildeTools
+                // 500 is the game's own limit. A splitter plugin can push this higher,
+                // and then it is on the splitter to cut the result up. With no splitter
+                // loaded it stays 500 and nothing changes.
                 ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, Plugin.Splitter.InputByteCap, flags, Callback);
 
+                // TildeTools
                 // Drawn over the input, because it cannot colour its own contents.
                 Spelling.DrawForInput(ref ChatInput);
             }
@@ -184,6 +186,7 @@ public class InputHandler
                 {
                     using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, normalColor);
 
+                    // TildeTools
                     // Above the rest, since a right click on a marked word is
                     // almost certainly about that word.
                     Spelling.DrawContextEntries(ref ChatInput);

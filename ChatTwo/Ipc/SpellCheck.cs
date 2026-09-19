@@ -1,8 +1,9 @@
+// TildeTools: written for this fork, not part of upstream Chat 2.
+
 using Dalamud.Plugin.Ipc;
 
 namespace ChatTwo.Ipc;
 
-/// <summary>One misspelled word and where it sits in the text.</summary>
 public readonly record struct Misspelling(int Start, int Length)
 {
     public string Word(string text) =>
@@ -12,8 +13,8 @@ public readonly record struct Misspelling(int Start, int Length)
 }
 
 /// <summary>
-/// Optional spellchecking from a plugin that provides a dictionary; does nothing when none is
-/// installed. Results are cached per string, since the preview redraws every frame.
+/// Spellchecking from a plugin that provides a dictionary, when one is installed. Does nothing
+/// at all when none is. Answers are cached per string, because the preview redraws every frame.
 /// </summary>
 public sealed class SpellCheck : IDisposable
 {
@@ -27,12 +28,13 @@ public sealed class SpellCheck : IDisposable
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
     /// <summary>
-    /// Answers already given, keyed by the text they were about. Holds many, not one: a split
-    /// message is checked a part at a time and each part would evict the last.
+    /// Answers we've already given, keyed by the text they were about. It holds a pile of them
+    /// rather than just the last one. A split message gets checked a part at a time,
+    /// so with one slot every part just evicts the one before it.
     /// </summary>
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
 
-    /// <summary>Cleared all at once instead of aged out: the keys are half-typed words.</summary>
+    /// <summary>Cleared all at once rather than aged out, since the keys are half-typed words.</summary>
     private const int MostToRemember = 64;
 
     public SpellCheck()
@@ -71,7 +73,6 @@ public sealed class SpellCheck : IDisposable
         }
     }
 
-    /// <summary>Logs the checker's presence once.</summary>
     private bool ReportedState;
 
     /// <summary>The misspelled words in a string, or an empty list when no checker is installed.</summary>
@@ -116,7 +117,7 @@ public sealed class SpellCheck : IDisposable
 
     /// <summary>
     /// Words that might have been meant instead, best first. Cached because the open menu asks
-    /// EVERY frame and a lookup costs tens of milliseconds.
+    /// every single frame, and a lookup costs tens of milliseconds.
     /// </summary>
     public IReadOnlyList<string> Suggest(string word)
     {

@@ -39,8 +39,9 @@ public sealed class About : ISettingsTab
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
-        // Named rather than taken from the manifest: inside another plugin the
-        // manifest says whoever built that, not who wrote this.
+        // TildeTools
+        // Named here instead of read off the manifest. Inside another plugin the
+        // manifest is whoever built that plugin, not who wrote this one.
         ImGui.TextUnformatted(Language.Options_About_Authors);
         ImGui.SameLine();
         ImGui.TextColored(ImGuiColors.ParsedGold, Hosting.IsHosted ? "Anna and Infi" : Plugin.Interface.Manifest.Author);
@@ -55,11 +56,11 @@ public sealed class About : ISettingsTab
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
-        // Support links are deliberately not shown on a modified build. Chat 2's
-        // maintainers did not write these changes, cannot reproduce problems caused
-        // by them, and should not be spending their time on our bugs. Credit above
-        // stays exactly as it is. This removes the support routing, not the
-        // attribution.
+        // TildeTools
+        // No support links on a modified build. Chat 2's maintainers did not write any
+        // of this and cannot reproduce a problem one of our changes caused, so pointing
+        // people at them just burns their time on our bugs. The credit above stays
+        // exactly as it is. This is about where bug reports go, not attribution.
         if (Hosting.IsHosted)
         {
             ImGui.TextColored(ImGuiColors.DalamudOrange, Language.Options_About_Modified_Build);
@@ -81,9 +82,10 @@ public sealed class About : ISettingsTab
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
-        // Translation help goes to Chat 2's own project, and translations of strings
-        // this build has changed would never reach it. Credit for the people whose
-        // work this is takes its place.
+        // TildeTools
+        // The translation link goes to Chat 2's own project, so a translation of a
+        // string this build has changed would never actually reach it. Credit for the
+        // people whose work this is goes in that spot instead.
         if (Hosting.IsHosted)
         {
             ImGui.TextUnformatted("Chat 2 was written by");

@@ -28,13 +28,14 @@ public class SendHandler
         SendChatBox(Plugin.CurrentTab, ref Message, ref TellSpecialUnused);
     }
 
+    // TildeTools
     /// <summary>
-    /// The finished chat line that <see cref="SendChatBox"/> would build from this
-    /// input: the channel prefix or tell target, followed by the text.
+    /// The line <see cref="SendChatBox"/> would actually build out of this input, so
+    /// the channel prefix or the tell target, then the text.
     ///
-    /// Used to show what a splitter will do with a message before it is sent, so
-    /// the preview and the send agree. It has to follow the shape below; if the
-    /// composition there changes, this changes with it.
+    /// It is here so a splitter can show what it is about to do with a message before
+    /// it goes out, and the preview and the real send agree on it. Has to mirror the
+    /// composition down in SendChatBox, so if that changes, change this with it.
     /// </summary>
     public static string ComposeLine(Tab activeTab, string chatInput)
     {
@@ -141,9 +142,10 @@ public class SendHandler
                     trimmed = $"{activeTab.CurrentChannel.Channel.Prefix()} {trimmed}";
             }
 
-            // Offered before auto-translate is turned into payload bytes, so the
-            // splitter sees plain text it can safely cut. Only over-length messages
-            // are offered, so an ordinary send costs nothing.
+            // TildeTools
+            // Offered before auto-translate becomes payload bytes, so the splitter is
+            // only ever looking at plain text it can safely cut. Anything under the cap
+            // never gets offered at all, so an ordinary send costs nothing.
             var splitterTookIt =
                 Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap &&
                 Plugin.Splitter.TrySend(trimmed);

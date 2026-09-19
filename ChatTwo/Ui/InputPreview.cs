@@ -24,9 +24,11 @@ public partial class InputPreview : Window
     private bool HasEvaluation;
     public float PreviewHeight;
 
+    // TildeTools
     /// <summary>
-    /// The input the preview was last built from. Compared as text, not length:
-    /// a same-length edit MUST still rebuild.
+    /// The input the preview was last built from. Compared as text rather than length,
+    /// because swapping one letter for another leaves the length alone and still needs
+    /// a rebuild.
     /// </summary>
     private string LastInput = string.Empty;
     private Message? PreviewMessage;
@@ -83,6 +85,7 @@ public partial class InputPreview : Window
         UpdateSplitParts();
     }
 
+    // TildeTools
     /// <summary>Renders text the way a chat line is rendered: payloads, icons and all.</summary>
     private static Message BuildMessage(string text)
     {
@@ -96,20 +99,24 @@ public partial class InputPreview : Window
         return message;
     }
 
+    // TildeTools
     /// <summary>The parts a splitter would break this message into, if any.</summary>
     private List<string>? SplitParts;
 
+    // TildeTools
     /// <summary>Those same parts as messages, so each previews the way it will arrive.</summary>
     private List<Message>? SplitMessages;
 
     private string LastSplitInput = string.Empty;
 
+    // TildeTools
     /// <summary>True while laying out off-screen to measure the height.</summary>
     private bool Measuring;
 
+    // TildeTools
     /// <summary>
-    /// Asks the splitter how the message divides up, only on change: this is a
-    /// cross-plugin call and the preview draws EVERY frame.
+    /// Asks the splitter how the message divides up, but only when it changes. It's a
+    /// cross-plugin call and the preview draws every frame, so asking each time adds up.
     /// </summary>
     private void UpdateSplitParts()
     {
@@ -124,6 +131,7 @@ public partial class InputPreview : Window
         if (!InputHandler.Plugin.Splitter.IsAvailable || line.Length == 0)
             return;
 
+        // TildeTools
         // One part means nothing is being split.
         var parts = InputHandler.Plugin.Splitter.Split(line);
         if (parts is not { Count: > 1 })
@@ -160,6 +168,7 @@ public partial class InputPreview : Window
         PositionCondition = ImGuiCond.Always;
     }
 
+    // TildeTools
     /// <summary>
     /// Moves the preview beside the chat window when it will not fit above or below,
     /// preferring the right.
@@ -177,6 +186,7 @@ public partial class InputPreview : Window
 
         var x = fitsRight || !fitsLeft ? right : windowPos.X - previewWidth;
 
+        // TildeTools
         // Level with the chat window, sliding up only as far as it must.
         var top = Math.Clamp(windowPos.Y, 0, Math.Max(0, screen.Y - PreviewHeight));
 
@@ -189,12 +199,13 @@ public partial class InputPreview : Window
         DrawPreview();
     }
 
+    // TildeTools
     /// <summary>The width of one column, which is the chat window's own width.</summary>
     private float ColumnWidth = 200f;
 
-    /// <summary>How wide the whole preview is: one column, or several side by side.</summary>
     public float PreviewWidth;
 
+    // TildeTools
     /// <summary>Which parts go in which column, filled top to bottom then left to right.</summary>
     private readonly List<List<int>> Columns = [];
 
@@ -203,6 +214,7 @@ public partial class InputPreview : Window
         // We Pre-draw this once to get the actual height :HideThePain:
         PreviewHeight = 0;
 
+        // TildeTools
         // The width text actually gets, inside the window's padding.
         var sidePadding = ImGui.GetStyle().WindowPadding.X * 2;
         ColumnWidth = Math.Max(120f, InputHandler.MainWindow.LastWindowSize.X - sidePadding);
@@ -211,7 +223,8 @@ public partial class InputPreview : Window
 
         var padding = IsWindowMode ? ImGui.GetStyle().WindowPadding.Y * 2 : 0;
 
-        // Nothing interactive during the measure: duplicate ids would fight the real draw.
+        // TildeTools
+        // Nothing interactive during the measure. Duplicate ids would fight with the real draw.
         Measuring = true;
         try
         {
@@ -234,6 +247,7 @@ public partial class InputPreview : Window
         }
     }
 
+    // TildeTools
     /// <summary>
     /// Measures each part, then fills columns with them, spilling into a new column
     /// to the right rather than off the bottom of the screen.
@@ -259,6 +273,7 @@ public partial class InputPreview : Window
             }
         });
 
+        // TildeTools
         // Nothing measured, but there are parts to show: one column, full height.
         if (heights.Count < SplitMessages!.Count)
         {
@@ -274,6 +289,7 @@ public partial class InputPreview : Window
 
         for (var i = 0; i < heights.Count; i++)
         {
+            // TildeTools
             // A part taller than the screen overflows its column rather than looping forever.
             if (current.Count > 0 && used + heights[i] > available)
             {
@@ -297,17 +313,19 @@ public partial class InputPreview : Window
         PreviewWidth = ColumnWidth * Math.Max(1, Columns.Count) + ImGui.GetStyle().WindowPadding.X * 2;
     }
 
+    // TildeTools
     /// <summary>
     /// Draws a block into a hidden child of one column's width and reports its height.
-    /// The child's width MATTERS: text wraps against the region it is drawn in.
+    /// It has to be that width, since text wraps against whatever region it's drawn in.
     /// </summary>
     private float MeasureColumn(Action draw)
     {
         var restore = ImGui.GetCursorPos();
         var height = 0f;
 
-        // Left at the cursor, one pixel tall: a child moved outside its parent is
-        // culled, and a culled child measures as zero height.
+        // TildeTools
+        // Left at the cursor, one pixel tall. Move the child outside its parent instead
+        // and ImGui culls it, and a culled child measures as zero height. Oops.
         using (var child = ImRaii.Child("##preview-measure", new Vector2(ColumnWidth, 1f), false,
                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoInputs))
         {
@@ -321,6 +339,7 @@ public partial class InputPreview : Window
             }
         }
 
+        // TildeTools
         // Back to the top, so the real drawing covers the sliver left behind.
         ImGui.SetCursorPos(restore);
         return height;
@@ -340,8 +359,10 @@ public partial class InputPreview : Window
             return;
         }
 
-        // A tooltip sizes itself, so it gets one column. The mode is checked as well
-        // as the count: columns from window mode LINGER after a switch to tooltip.
+        // TildeTools
+        // A tooltip sizes itself, so it gets one column. The columns from
+        // window mode linger after a switch to tooltip, so the mode gets checked as
+        // well as the count.
         if (!IsWindowMode || Columns.Count == 0)
         {
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
@@ -371,6 +392,7 @@ public partial class InputPreview : Window
 
             using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
 
+            // TildeTools
             // Only above the first column: it names the whole preview.
             if (c == 0)
                 DrawSplitHeader();
@@ -382,19 +404,21 @@ public partial class InputPreview : Window
         DrawSpellingPopup();
     }
 
+    // TildeTools
     /// <summary>
     /// The text spelling positions are counted against: the trimmed input, or one
     /// part of a split message while that part is drawn.
     /// </summary>
     private string SpellSource = string.Empty;
 
+    // TildeTools
     /// <summary>
     /// The misspelled word at each character of <see cref="SpellSource"/>, or null.
-    /// Built once per source change: per-letter would be a cross-plugin call per letter.
+    /// Built once per source change, since doing it as you go would be a cross-plugin
+    /// call for every letter.
     /// </summary>
     private string?[] SpellMarks = [];
 
-    /// <summary>Points the marks at a different piece of text, rebuilding them.</summary>
     private void SetSpellSource(string text)
     {
         if (ReferenceEquals(SpellSource, text) && SpellMarks.Length == text.Length)
@@ -415,18 +439,22 @@ public partial class InputPreview : Window
         }
     }
 
+    // TildeTools
     /// <summary>Whether clicking a letter should move the cursor in the input box.</summary>
     private bool MapsToInput = true;
 
+    // TildeTools
     /// <summary>The misspelled word at a position in the drawn text, or null.</summary>
     private string? MisspelledWordAt(int position) =>
         position >= 0 && position < SpellMarks.Length ? SpellMarks[position] : null;
 
+    // TildeTools
     /// <summary>Set when a marked letter is right-clicked, wherever it was drawn.</summary>
     private bool OpenSpellingPopup;
 
     private void DrawSpellingPopup()
     {
+        // TildeTools
         // Opened here, not at the click, so the id matches the BeginPopup below.
         if (OpenSpellingPopup)
         {
@@ -438,21 +466,30 @@ public partial class InputPreview : Window
         if (!popup.Success)
             return;
 
+        // TildeTools
         // Corrections apply to the real input, not the trimmed copy.
         InputHandler.Spelling.DrawContextEntries(ref InputHandler.ChatInput);
     }
 
+    // TildeTools
     /// <summary>
     /// Heads the per-part preview, which replaces the whole-message one rather than
     /// sitting above it.
     /// </summary>
     private void DrawSplitHeader()
     {
-        if (SplitParts is { } parts)
-            ImGui.TextDisabled($"Will be sent as {parts.Count} messages:");
+        if (SplitParts is not { } parts)
+            return;
+
+        // TildeTools
+        // Only the gaps are waited on: the first part goes out the moment you press enter.
+        var seconds = (parts.Count - 1) * InputHandler.Plugin.Splitter.IntervalMs / 1000f;
+
+        ImGui.TextDisabled(seconds >= 1f
+            ? $"Will be sent as {parts.Count} messages, over about {seconds:0.#} seconds:"
+            : $"Will be sent as {parts.Count} messages:");
     }
 
-    /// <summary>Draws one part, numbered as it will be sent.</summary>
     private void DrawSplitPart(int index, PayloadHandler? handler)
     {
         if (SplitParts is not { } parts || SplitMessages is not { } messages)
@@ -468,16 +505,19 @@ public partial class InputPreview : Window
 
         using var indent = ImRaii.PushIndent();
 
-        // Both saved: the marks belong to the source and MUST be restored with it.
+        // TildeTools
+        // Both get saved. The marks belong to the source, so they MUST go back with it.
         var previousSource = SpellSource;
         var previousMarks = SpellMarks;
         MapsToInput = false;
 
         try
         {
+            // TildeTools
             // Checked against the part, so marks need no offset mapping.
             SetSpellSource(parts[index]);
 
+            // TildeTools
             // Ids spaced well apart per part, so the same letter in two parts is two items.
             DrawChunksPreview(messages[index].Content, handler, unique: 100000 * (index + 1));
         }
@@ -507,6 +547,7 @@ public partial class InputPreview : Window
             }
             else if (chunks[i].Link is EmotePayload && Plugin.Config.ShowEmotes)
             {
+                // TildeTools
                 // Emote payloads don't add newlines themselves, which breaks
                 // non-modern mode.
                 ImGui.SameLine();
@@ -538,10 +579,12 @@ public partial class InputPreview : Window
             var emoteSize = ImGui.CalcTextSize("W");
             emoteSize = emoteSize with { Y = emoteSize.X } * 1.5f;
 
+            // TildeTools
             // TextWrap doesn't work for emotes, so wrap manually.
             if (ImGui.GetContentRegionAvail().X < emoteSize.X)
                 ImGui.NewLine();
 
+            // TildeTools
             // Dummy while loading; on failure fall through to the name.
             var image = EmoteCache.GetEmote(emotePayload.Code);
             if (image is { Failed: false })
@@ -595,6 +638,7 @@ public partial class InputPreview : Window
                 if (ImGui.Selectable($"{letter}##{CursorPosition + unique}", false, ImGuiSelectableFlags.None, letterSize)
                     && MapsToInput)
                 {
+                    // TildeTools
                     // Only when the drawn text is the input itself: a split part
                     // carries markers the box does not.
                     SelectedCursorPos = CursorPosition;
@@ -609,8 +653,9 @@ public partial class InputPreview : Window
                     {
                         InputHandler.Spelling.SetPendingWord(misspelled);
 
+                        // TildeTools
                         // Flagged, not opened here: a popup is found by the id stack it
-                        // was opened under, and this runs inside a child under a pushed id. Yikes!
+                        // was opened under, and this runs inside a child under a pushed id.
                         OpenSpellingPopup = true;
                     }
                 }

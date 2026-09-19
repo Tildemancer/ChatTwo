@@ -1,14 +1,16 @@
+// TildeTools: written for this fork, not part of upstream Chat 2.
+
 using Dalamud.Plugin.Ipc;
 
 namespace ChatTwo.Ipc;
 
 /// <summary>
-/// Optional: talks to a plugin that splits over-length messages.
-/// Falls back to Chat 2's normal behaviour when none is installed.
+/// Talks to a plugin that splits over-length messages, if one is installed.
+/// If none is, Chat 2 just carries on with its normal behaviour.
 /// </summary>
 public sealed class Splitter : IDisposable
 {
-    /// <summary>Bytes, NOT characters. The limit the game itself enforces.</summary>
+    /// <summary>Bytes, not characters. This is the limit the game itself enforces.</summary>
     public const int DefaultByteCap = 500;
 
     /// <summary>The API version this was written against.</summary>
@@ -18,10 +20,14 @@ public sealed class Splitter : IDisposable
     private ICallGateSubscriber<int> InputByteCapGate { get; }
     private ICallGateSubscriber<string, int, bool> SendLineGate { get; }
     private ICallGateSubscriber<string, int, List<string>> SplitLineGate { get; }
+    private ICallGateSubscriber<int> IntervalMsGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
-    /// <summary>Cached; the input box is drawn every frame.</summary>
+    /// <summary>Cached, because the input box gets drawn every frame.</summary>
     private int CachedCap { get; set; } = DefaultByteCap;
+
+    /// <summary>Cached alongside the cap, and zero while no splitter is answering.</summary>
+    private int CachedInterval { get; set; }
 
     public Splitter()
     {
@@ -29,6 +35,7 @@ public sealed class Splitter : IDisposable
         InputByteCapGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.InputByteCap");
         SendLineGate = Plugin.Interface.GetIpcSubscriber<string, int, bool>("TildeTools.Split.SendLine");
         SplitLineGate = Plugin.Interface.GetIpcSubscriber<string, int, List<string>>("TildeTools.Split.SplitLine");
+        IntervalMsGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.IntervalMs");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Split.Available");
 
         // Fires when the splitter loads after Chat 2.
@@ -37,13 +44,36 @@ public sealed class Splitter : IDisposable
         Refresh();
     }
 
-    /// <summary>How many bytes the message box should accept.</summary>
     public int InputByteCap => CachedCap;
+
+    /// <summary>
+    /// Milliseconds the splitter leaves between parts, or zero when nothing is
+    /// answering. The first part goes out at once, so a message of n parts takes
+    /// n-1 of these.
+    /// </summary>
+    public int IntervalMs => CachedInterval;
 
     /// <summary>Re-reads the limit. Call when the plugin list changes.</summary>
     public void Refresh()
     {
         CachedCap = QueryCap();
+        CachedInterval = QueryInterval();
+    }
+
+    private int QueryInterval()
+    {
+        if (!IsAvailable)
+            return 0;
+
+        try
+        {
+            var interval = IntervalMsGate.InvokeFunc();
+            return interval > 0 ? interval : 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private int QueryCap()
@@ -59,7 +89,7 @@ public sealed class Splitter : IDisposable
             IsAvailable = true;
             var cap = InputByteCapGate.InvokeFunc();
 
-            // NEVER shrink below the game's limit on another plugin's word.
+            // Don't shrink below the game's limit just because another plugin says so.
             return cap < DefaultByteCap ? DefaultByteCap : cap;
         }
         catch
@@ -71,8 +101,9 @@ public sealed class Splitter : IDisposable
     }
 
     /// <summary>
-    /// True when a compatible splitter is answering. Recorded, not inferred from
-    /// the cap: a cap at exactly the game's own limit would read as "absent".
+    /// True when a compatible splitter is answering. We record this rather than work it
+    /// out from the cap, since a splitter reporting exactly the game's own limit would
+    /// look like no splitter at all.
     /// </summary>
     public bool IsAvailable { get; private set; }
 
