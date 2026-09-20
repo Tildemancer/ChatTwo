@@ -101,11 +101,23 @@ public class SendHandler
                     {
                         trimmed = $"/tell {target.ToTargetString()} {trimmed}";
 
-                        if (oversized && Plugin.Splitter.TrySend(trimmed))
+                        if (oversized)
                         {
-                            activeTab.CurrentChannel.ResetTempChannel();
-                            chatInput = string.Empty;
-                            return;
+                            var tellTake = Plugin.Splitter.Offer(trimmed);
+
+                            if (tellTake == SplitTake.Queued)
+                            {
+                                activeTab.CurrentChannel.ResetTempChannel();
+                                chatInput = string.Empty;
+                                return;
+                            }
+
+                            // TildeTools
+                            // Refused. Sending it ourselves means the game drops it for
+                            // being over length, silently, and the tell is gone along
+                            // with whatever was typed. Leave it in the box to fix.
+                            if (tellTake == SplitTake.Refused)
+                                return;
                         }
 
                         var tellBytes = Encoding.UTF8.GetBytes(trimmed);
@@ -146,11 +158,18 @@ public class SendHandler
             // Offered before auto-translate becomes payload bytes, so the splitter is
             // only ever looking at plain text it can safely cut. Anything under the cap
             // never gets offered at all, so an ordinary send costs nothing.
-            var splitterTookIt =
-                Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap &&
-                Plugin.Splitter.TrySend(trimmed);
+            var take = Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap
+                ? Plugin.Splitter.Offer(trimmed)
+                : SplitTake.NotTaken;
 
-            if (!splitterTookIt)
+            // TildeTools
+            // Refused, so it must NOT go out as it stands: the game bins anything over
+            // length without saying so. Returning here is what keeps the text in the
+            // box, since the clear at the end of this method runs whatever happened.
+            if (take == SplitTake.Refused)
+                return;
+
+            if (take == SplitTake.NotTaken)
             {
                 var bytes = Encoding.UTF8.GetBytes(trimmed);
                 AutoTranslate.ReplaceWithPayload(ref bytes);

@@ -4,6 +4,22 @@ using Dalamud.Plugin.Ipc;
 
 namespace ChatTwo.Ipc;
 
+/// <summary>What the splitter did with a line we offered it.</summary>
+public enum SplitTake
+{
+    /// <summary>Nothing. Send it ourselves, exactly as we would have.</summary>
+    NotTaken,
+
+    /// <summary>Broken up and on its way. Send nothing, and the box can be cleared.</summary>
+    Queued,
+
+    /// <summary>
+    /// Turned down, with the reason already in the log. Send nothing, and leave the
+    /// text alone — it is the only copy of what was typed.
+    /// </summary>
+    Refused,
+}
+
 /// <summary>
 /// Talks to a plugin that splits over-length messages, if one is installed.
 /// If none is, Chat 2 just carries on with its normal behaviour.
@@ -19,6 +35,7 @@ public sealed class Splitter : IDisposable
     private ICallGateSubscriber<int> ApiVersionGate { get; }
     private ICallGateSubscriber<int> InputByteCapGate { get; }
     private ICallGateSubscriber<string, int, bool> SendLineGate { get; }
+    private ICallGateSubscriber<string, int, int> SendLineStatusGate { get; }
     private ICallGateSubscriber<string, int, List<string>> SplitLineGate { get; }
     private ICallGateSubscriber<string, int, List<int>> SplitSpansGate { get; }
     private ICallGateSubscriber<int> IntervalMsGate { get; }
@@ -35,6 +52,7 @@ public sealed class Splitter : IDisposable
         ApiVersionGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.ApiVersion");
         InputByteCapGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.InputByteCap");
         SendLineGate = Plugin.Interface.GetIpcSubscriber<string, int, bool>("TildeTools.Split.SendLine");
+        SendLineStatusGate = Plugin.Interface.GetIpcSubscriber<string, int, int>("TildeTools.Split.SendLineStatus");
         SplitLineGate = Plugin.Interface.GetIpcSubscriber<string, int, List<string>>("TildeTools.Split.SplitLine");
         SplitSpansGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySpans");
         IntervalMsGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.IntervalMs");
@@ -160,6 +178,33 @@ public sealed class Splitter : IDisposable
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Offers a chat line and gets a straight answer about what happened to it.
+    ///
+    /// The yes-or-no version above cannot tell "not mine, you send it" from "I looked
+    /// at that and said no", and we did the wrong thing on the second: sent the
+    /// oversized line ourselves, watched the game bin it, and emptied the box anyway.
+    /// An older splitter has no such gate, so a no from it still means send it yourself.
+    /// </summary>
+    public SplitTake Offer(string line)
+    {
+        try
+        {
+            var status = SendLineStatusGate.InvokeFunc(line, DefaultByteCap);
+
+            return status switch
+            {
+                1 => SplitTake.Queued,
+                2 => SplitTake.Refused,
+                _ => SplitTake.NotTaken,
+            };
+        }
+        catch
+        {
+            return TrySend(line) ? SplitTake.Queued : SplitTake.NotTaken;
         }
     }
 
