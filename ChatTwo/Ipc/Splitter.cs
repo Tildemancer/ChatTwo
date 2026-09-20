@@ -20,6 +20,7 @@ public sealed class Splitter : IDisposable
     private ICallGateSubscriber<int> InputByteCapGate { get; }
     private ICallGateSubscriber<string, int, bool> SendLineGate { get; }
     private ICallGateSubscriber<string, int, List<string>> SplitLineGate { get; }
+    private ICallGateSubscriber<string, int, List<int>> SplitSpansGate { get; }
     private ICallGateSubscriber<int> IntervalMsGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
@@ -35,6 +36,7 @@ public sealed class Splitter : IDisposable
         InputByteCapGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.InputByteCap");
         SendLineGate = Plugin.Interface.GetIpcSubscriber<string, int, bool>("TildeTools.Split.SendLine");
         SplitLineGate = Plugin.Interface.GetIpcSubscriber<string, int, List<string>>("TildeTools.Split.SplitLine");
+        SplitSpansGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySpans");
         IntervalMsGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.IntervalMs");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Split.Available");
 
@@ -106,6 +108,33 @@ public sealed class Splitter : IDisposable
     /// look like no splitter at all.
     /// </summary>
     public bool IsAvailable { get; private set; }
+
+    /// <summary>
+    /// Where the typed text sits inside each part, as a start and a length per part.
+    /// Everything outside is the splitter's own: the channel command, continuation
+    /// markers, OOC tags. Empty when the splitter is too old to say.
+    /// </summary>
+    public List<(int Start, int Length)> BodySpans(string line)
+    {
+        try
+        {
+            var flat = SplitSpansGate.InvokeFunc(line, DefaultByteCap);
+            if (flat is null || flat.Count % 2 != 0)
+                return [];
+
+            var spans = new List<(int, int)>(flat.Count / 2);
+            for (var i = 0; i + 1 < flat.Count; i += 2)
+                spans.Add((flat[i], flat[i + 1]));
+
+            return spans;
+        }
+        catch
+        {
+            // An older splitter has no such gate. Marking everything is what we did
+            // before, so fall back to that rather than marking nothing.
+            return [];
+        }
+    }
 
     /// <summary>Preview of how a chat line would divide up. Null if the splitter declined.</summary>
     public List<string>? Split(string line)

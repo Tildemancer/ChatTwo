@@ -71,7 +71,11 @@ public partial class InputPreview : Window
             return;
         }
 
-        SetSpellSource( InputHandler.ChatInput.Trim() );
+        // TildeTools
+        // Complete when the last keystroke was a space: that is what the checker reads
+        // to decide a word is done, and Trim below would otherwise throw it away.
+        var typed = InputHandler.ChatInput;
+        SetSpellSource(typed.Trim(), complete: typed.Length > 0 && char.IsWhiteSpace(typed[^1]));
 
         if (PreviewMessage == null || LastInput != InputHandler.ChatInput)
         {
@@ -110,6 +114,10 @@ public partial class InputPreview : Window
     private string LastSplitInput = string.Empty;
 
     // TildeTools
+    /// <summary>The typed-text span within each part, empty when the splitter cannot say.</summary>
+    private List<(int Start, int Length)> SplitBodies = [];
+
+    // TildeTools
     /// <summary>True while laying out off-screen to measure the height.</summary>
     private bool Measuring;
 
@@ -127,6 +135,7 @@ public partial class InputPreview : Window
         LastSplitInput = line;
         SplitParts = null;
         SplitMessages = null;
+        SplitBodies = [];
 
         if (!InputHandler.Plugin.Splitter.IsAvailable || line.Length == 0)
             return;
@@ -139,6 +148,11 @@ public partial class InputPreview : Window
 
         SplitParts = parts;
         SplitMessages = [.. parts.Select(BuildMessage)];
+
+        // TildeTools
+        // Which slice of each part is text you typed. The rest is the splitter's
+        // markers, and underlining those as misspellings is just noise.
+        SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
     }
 
     public bool IsDrawable => ValidDraw && HasEvaluation;
@@ -412,6 +426,10 @@ public partial class InputPreview : Window
     private string SpellSource = string.Empty;
 
     // TildeTools
+    /// <summary>The body span those marks were built for, part of the cache key.</summary>
+    private (int Start, int Length)? SpellBody;
+
+    // TildeTools
     /// <summary>
     /// The misspelled word at each character of <see cref="SpellSource"/>, or null.
     /// Built once per source change, since doing it as you go would be a cross-plugin
@@ -419,22 +437,55 @@ public partial class InputPreview : Window
     /// </summary>
     private string?[] SpellMarks = [];
 
-    private void SetSpellSource(string text)
+    // TildeTools
+    /// <summary>
+    /// Points the marks at a piece of text.
+    ///
+    /// <paramref name="complete"/> says the text is not being typed into any more.
+    /// The checker leaves the final word alone unless something says it is finished,
+    /// which it reads off trailing whitespace — and the text drawn here has been
+    /// trimmed, so that signal is gone by the time it arrives. Without this the
+    /// preview trails a word behind the box, and the last word of every split part
+    /// never gets checked at all.
+    /// </summary>
+    private void SetSpellSource(string text, bool complete = false, (int Start, int Length)? body = null)
     {
-        if (ReferenceEquals(SpellSource, text) && SpellMarks.Length == text.Length)
+        // TildeTools
+        // The span is part of the key: the same part text with a different body slice
+        // wants different marks. Without it in here, passing a span would rebuild every
+        // frame, and rebuilding means a cross-plugin call per frame per part.
+        if (ReferenceEquals(SpellSource, text) && SpellMarks.Length == text.Length && SpellBody == body)
             return;
 
         SpellSource = text;
+        SpellBody = body;
         SpellMarks = new string?[text.Length];
 
-        foreach (var misspelling in InputHandler.Plugin.SpellCheck.Check(text))
+        // TildeTools
+        // Only the typed part is worth checking. The markers around it are ours and
+        // would otherwise come back as misspellings, which they are.
+        var from = 0;
+        var to = text.Length;
+
+        if (body is { } span && span.Length > 0 && span.Start >= 0 && span.Start + span.Length <= text.Length)
+        {
+            from = span.Start;
+            to = span.Start + span.Length;
+        }
+
+        // TildeTools
+        // Padded only for the check. The marks still line up with the drawn text,
+        // and the extra position is never looked at.
+        var forCheck = complete && text.Length > 0 ? text + " " : text;
+
+        foreach (var misspelling in InputHandler.Plugin.SpellCheck.Check(forCheck))
         {
             var word = misspelling.Word(text);
             if (word.Length == 0)
                 continue;
 
-            var end = Math.Min(text.Length, misspelling.Start + misspelling.Length);
-            for (var i = Math.Max(0, misspelling.Start); i < end; i++)
+            var end = Math.Min(to, misspelling.Start + misspelling.Length);
+            for (var i = Math.Max(from, misspelling.Start); i < end; i++)
                 SpellMarks[i] = word;
         }
     }
@@ -515,7 +566,11 @@ public partial class InputPreview : Window
         {
             // TildeTools
             // Checked against the part, so marks need no offset mapping.
-            SetSpellSource(parts[index]);
+            // A part has been cut to length already, so every word in it is finished.
+            SetSpellSource(
+                parts[index],
+                complete: true,
+                body: index < SplitBodies.Count ? SplitBodies[index] : null);
 
             // TildeTools
             // Ids spaced well apart per part, so the same letter in two parts is two items.
