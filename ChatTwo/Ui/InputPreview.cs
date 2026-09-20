@@ -565,11 +565,14 @@ public partial class InputPreview : Window
         try
         {
             // TildeTools
-            // Checked against the part, so marks need no offset mapping.
-            // A part has been cut to length already, so every word in it is finished.
+            // Every part but the last was cut to length, so its words are all finished.
+            // The last one is the end of what you are typing, and that word is not.
+            var typed = InputHandler.ChatInput;
+            var lastPart = index == parts.Count - 1;
+
             SetSpellSource(
                 parts[index],
-                complete: true,
+                complete: !lastPart || (typed.Length > 0 && char.IsWhiteSpace(typed[^1])),
                 body: index < SplitBodies.Count ? SplitBodies[index] : null);
 
             // TildeTools

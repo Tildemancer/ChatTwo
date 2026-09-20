@@ -21,6 +21,24 @@ public sealed class SpellUnderline
 
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
 
+    /// <summary>
+    /// How far the box has scrolled sideways.
+    ///
+    /// Taken off the input's own state rather than worked out. The caret only tells
+    /// you where the scroll must be while you are typing at the end of the line —
+    /// move the cursor back into the middle and the true offset can sit anywhere in
+    /// a box-width range, which is why guessing it drifted further the more was typed.
+    ///
+    /// There is no state until the box has been clicked into, and an unfocused box
+    /// draws from the start, so nothing to offset by then.
+    /// </summary>
+    private static unsafe float ScrollOffset()
+    {
+        var state = ImGuiP.GetInputTextState(ImGuiP.GetItemID());
+
+        return state.IsNull ? 0f : state.ScrollX;
+    }
+
     public static void UnderlineLastItem()
     {
         var min = ImGui.GetItemRectMin();
@@ -52,12 +70,20 @@ public sealed class SpellUnderline
         var size = ImGui.GetItemRectSize();
 
         var inset = ImGui.GetStyle().FramePadding.X;
-        // Once the input scrolls sideways the on-screen text no longer starts at index 0,
-        // and the scroll offset is not exposed. Draw nothing rather than the wrong words, for now.
-        if (ImGui.CalcTextSize(text).X > size.X - inset * 2)
-            return;
+        var visible = size.X - inset * 2;
+
+        var scroll = ScrollOffset();
 
         var drawList = ImGui.GetWindowDrawList();
+
+        // Clipped to the frame, the way ImGui clips the glyphs themselves. Insetting
+        // by the padding would shave the marks under the first and last letters, and
+        // the line sits a shade below the text so the bottom needs room for it.
+        drawList.PushClipRect(
+            new Vector2(min.X, min.Y),
+            new Vector2(min.X + size.X, min.Y + size.Y + Thickness * ImGuiHelpers.GlobalScale),
+            true);
+
         var colour = ImGui.GetColorU32(Colour);
         var y = min.Y + size.Y - ImGui.GetStyle().FramePadding.Y + Drop * ImGuiHelpers.GlobalScale;
         var mouseX = ImGui.GetIO().MousePos.X;
@@ -65,12 +91,24 @@ public sealed class SpellUnderline
         var rightClicked = ImGui.IsMouseClicked(ImGuiMouseButton.Right);
         var clickedWord = string.Empty;
 
-        foreach (var misspelling in misspellings)
+        // Walked in order with a running width, rather than measuring the whole
+        // prefix again for every word. On a long line that was re-measuring most of
+        // the message several times a frame.
+        var walked = 0;
+        var walkedX = 0f;
+
+        foreach (var misspelling in misspellings.OrderBy(m => m.Start))
         {
             if (misspelling.Start < 0 || misspelling.Start + misspelling.Length > text.Length)
                 continue;
 
-            var left = min.X + inset + ImGui.CalcTextSize(text[..misspelling.Start]).X;
+            if (misspelling.Start >= walked)
+            {
+                walkedX += ImGui.CalcTextSize(text.AsSpan(walked, misspelling.Start - walked)).X;
+                walked = misspelling.Start;
+            }
+
+            var left = min.X + inset - scroll + walkedX;
             var right = left + ImGui.CalcTextSize(text.Substring(misspelling.Start, misspelling.Length)).X;
 
             drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, Thickness * ImGuiHelpers.GlobalScale);
@@ -79,6 +117,8 @@ public sealed class SpellUnderline
             if (hovered && rightClicked && mouseX >= left && mouseX <= right)
                 clickedWord = misspelling.Word(text);
         }
+
+        drawList.PopClipRect();
 
         if (rightClicked)
             PendingWord = clickedWord;
