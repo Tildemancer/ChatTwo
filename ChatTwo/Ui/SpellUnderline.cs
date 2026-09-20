@@ -70,48 +70,43 @@ public sealed class SpellUnderline
         var size = ImGui.GetItemRectSize();
 
         var inset = ImGui.GetStyle().FramePadding.X;
-        var visible = size.X - inset * 2;
 
         var scroll = ScrollOffset();
 
         var drawList = ImGui.GetWindowDrawList();
 
         // Clipped to the frame, the way ImGui clips the glyphs themselves. Insetting
-        // by the padding would shave the marks under the first and last letters, and
-        // the line sits a shade below the text so the bottom needs room for it.
-        drawList.PushClipRect(
-            new Vector2(min.X, min.Y),
-            new Vector2(min.X + size.X, min.Y + size.Y + Thickness * ImGuiHelpers.GlobalScale),
-            true);
+        // by the padding would shave the marks under the first and last letters.
+        drawList.PushClipRect(new Vector2(min.X, min.Y), new Vector2(min.X + size.X, min.Y + size.Y), true);
 
         var colour = ImGui.GetColorU32(Colour);
-        var y = min.Y + size.Y - ImGui.GetStyle().FramePadding.Y + Drop * ImGuiHelpers.GlobalScale;
+        var thick = Thickness * ImGuiHelpers.GlobalScale;
+
+        // Just under the text, but never past the bottom of the box. A style with
+        // little vertical padding, scaled up, would otherwise hang the line outside
+        // the frame it belongs to.
+        var y = Math.Min(
+            min.Y + size.Y - ImGui.GetStyle().FramePadding.Y + Drop * ImGuiHelpers.GlobalScale,
+            min.Y + size.Y - thick);
+
         var mouseX = ImGui.GetIO().MousePos.X;
 
         var rightClicked = ImGui.IsMouseClicked(ImGuiMouseButton.Right);
         var clickedWord = string.Empty;
 
-        // Walked in order with a running width, rather than measuring the whole
-        // prefix again for every word. On a long line that was re-measuring most of
-        // the message several times a frame.
-        var walked = 0;
-        var walkedX = 0f;
-
-        foreach (var misspelling in misspellings.OrderBy(m => m.Start))
+        foreach (var misspelling in misspellings)
         {
             if (misspelling.Start < 0 || misspelling.Start + misspelling.Length > text.Length)
                 continue;
 
-            if (misspelling.Start >= walked)
-            {
-                walkedX += ImGui.CalcTextSize(text.AsSpan(walked, misspelling.Start - walked)).X;
-                walked = misspelling.Start;
-            }
-
-            var left = min.X + inset - scroll + walkedX;
+            // The whole prefix each time, rather than adding up the gaps between the
+            // marked words. Turns out CalcTextSize rounds every call up to a whole
+            // pixel, so a running total slides a pixel further right per word it has
+            // passed, and by the tenth one the line is sitting off the end of it.
+            var left = min.X + inset - scroll + ImGui.CalcTextSize(text.AsSpan(0, misspelling.Start)).X;
             var right = left + ImGui.CalcTextSize(text.Substring(misspelling.Start, misspelling.Length)).X;
 
-            drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, Thickness * ImGuiHelpers.GlobalScale);
+            drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, thick);
 
             // Latch it on the click. Turns out clearing it later empties the menu just as it opens.
             if (hovered && rightClicked && mouseX >= left && mouseX <= right)

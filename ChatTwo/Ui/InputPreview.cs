@@ -476,7 +476,15 @@ public partial class InputPreview : Window
         // TildeTools
         // Padded only for the check. The marks still line up with the drawn text,
         // and the extra position is never looked at.
-        var forCheck = complete && text.Length > 0 ? text + " " : text;
+        //
+        // Unfinished, it gets cut at the end of the body instead. The checker decides
+        // whether the last word is still being typed by looking at the last character
+        // it was handed, and on the closing part that character is ours — the "]" of a
+        // final marker, or an OOC bracket — which made every word look finished and
+        // put a line under the one you were still halfway through.
+        var forCheck = complete
+            ? text.Length > 0 ? text + " " : text
+            : text[..to];
 
         foreach (var misspelling in InputHandler.Plugin.SpellCheck.Check(forCheck))
         {
