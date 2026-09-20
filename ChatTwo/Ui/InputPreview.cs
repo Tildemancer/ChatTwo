@@ -499,6 +499,18 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
+    /// <summary>
+    /// Whether the last word of what has been typed is finished, by the same rule the
+    /// checker uses. Whitespace alone was not enough: close an OOC note and the last
+    /// thing you typed is a bracket, which the splitter lifts off the body, so the
+    /// preview cut the sentence short and stopped marking a word the box still marked.
+    /// </summary>
+    private static bool FinishedTyping(string typed) =>
+        typed.Length > 0 &&
+        (char.IsWhiteSpace(typed[^1]) ||
+         (char.IsPunctuation(typed[^1]) && typed[^1] is not ('\'' or '-')));
+
+    // TildeTools
     /// <summary>Whether clicking a letter should move the cursor in the input box.</summary>
     private bool MapsToInput = true;
 
@@ -580,7 +592,7 @@ public partial class InputPreview : Window
 
             SetSpellSource(
                 parts[index],
-                complete: !lastPart || (typed.Length > 0 && char.IsWhiteSpace(typed[^1])),
+                complete: !lastPart || FinishedTyping(typed),
                 body: index < SplitBodies.Count ? SplitBodies[index] : null);
 
             // TildeTools
