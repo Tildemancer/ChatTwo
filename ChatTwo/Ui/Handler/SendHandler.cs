@@ -30,12 +30,11 @@ public class SendHandler
 
     // TildeTools
     /// <summary>
-    /// The line <see cref="SendChatBox"/> would actually build out of this input, so
-    /// the channel prefix or the tell target, then the text.
+    /// The line <see cref="SendChatBox"/> builds out of this input: the channel prefix
+    /// or the tell target, then the text.
     ///
-    /// It is here so a splitter can show what it is about to do with a message before
-    /// it goes out, and the preview and the real send agree on it. Has to mirror the
-    /// composition down in SendChatBox, so if that changes, change this with it.
+    /// Here so the preview and the real send agree on what is about to go out. Mirrors
+    /// the composition down in SendChatBox. Change that and change this with it.
     /// </summary>
     public static string ComposeLine(Tab activeTab, string chatInput)
     {
@@ -113,9 +112,9 @@ public class SendHandler
                             }
 
                             // TildeTools
-                            // Refused. Sending it ourselves means the game drops it for
-                            // being over length, silently, and the tell is gone along
-                            // with whatever was typed. Leave it in the box to fix.
+                            // Refused. Sent ourselves, the game drops it for length
+                            // without a word and the tell is gone with whatever was
+                            // typed. Leave it in the box to fix.
                             if (tellTake == SplitTake.Refused)
                                 return;
                         }
@@ -155,17 +154,17 @@ public class SendHandler
             }
 
             // TildeTools
-            // Offered before auto-translate becomes payload bytes, so the splitter is
-            // only ever looking at plain text it can safely cut. Anything under the cap
-            // never gets offered at all, so an ordinary send costs nothing.
+            // Offered before auto-translate becomes payload bytes, so the splitter only
+            // ever sees plain text it can safely cut. Nothing under the cap is offered,
+            // so an ordinary send costs nothing.
             var take = Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap
                 ? Plugin.Splitter.Offer(trimmed)
                 : SplitTake.NotTaken;
 
             // TildeTools
             // Refused, so it must NOT go out as it stands: the game bins anything over
-            // length without saying so. Returning here is what keeps the text in the
-            // box, since the clear at the end of this method runs whatever happened.
+            // length silently. Returning here keeps the text in the box, since the
+            // clear at the end of this method runs whatever happened.
             if (take == SplitTake.Refused)
                 return;
 

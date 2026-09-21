@@ -15,14 +15,14 @@ public enum SplitTake
 
     /// <summary>
     /// Turned down, with the reason already in the log. Send nothing, and leave the
-    /// text alone — it is the only copy of what was typed.
+    /// text alone. It is the only copy of what was typed.
     /// </summary>
     Refused,
 }
 
 /// <summary>
-/// Talks to a plugin that splits over-length messages, if one is installed.
-/// If none is, Chat 2 just carries on with its normal behaviour.
+/// Talks to a plugin that splits over-length messages, when one is installed.
+/// With none installed, Chat 2 carries on as before.
 /// </summary>
 public sealed class Splitter : IDisposable
 {
@@ -38,6 +38,7 @@ public sealed class Splitter : IDisposable
     private ICallGateSubscriber<string, int, int> SendLineStatusGate { get; }
     private ICallGateSubscriber<string, int, List<string>> SplitLineGate { get; }
     private ICallGateSubscriber<string, int, List<int>> SplitSpansGate { get; }
+    private ICallGateSubscriber<string, int, List<int>> SplitSourcesGate { get; }
     private ICallGateSubscriber<int> IntervalMsGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
@@ -55,6 +56,7 @@ public sealed class Splitter : IDisposable
         SendLineStatusGate = Plugin.Interface.GetIpcSubscriber<string, int, int>("TildeTools.Split.SendLineStatus");
         SplitLineGate = Plugin.Interface.GetIpcSubscriber<string, int, List<string>>("TildeTools.Split.SplitLine");
         SplitSpansGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySpans");
+        SplitSourcesGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySources");
         IntervalMsGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.IntervalMs");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Split.Available");
 
@@ -109,7 +111,7 @@ public sealed class Splitter : IDisposable
             IsAvailable = true;
             var cap = InputByteCapGate.InvokeFunc();
 
-            // Don't shrink below the game's limit just because another plugin says so.
+            // Never below the game's own limit, whatever the splitter reports.
             return cap < DefaultByteCap ? DefaultByteCap : cap;
         }
         catch
@@ -121,9 +123,9 @@ public sealed class Splitter : IDisposable
     }
 
     /// <summary>
-    /// True when a compatible splitter is answering. We record this rather than work it
-    /// out from the cap, since a splitter reporting exactly the game's own limit would
-    /// look like no splitter at all.
+    /// True when a compatible splitter is answering. Recorded rather than worked out
+    /// from the cap: a splitter reporting exactly the game's own limit would look like
+    /// no splitter at all.
     /// </summary>
     public bool IsAvailable { get; private set; }
 
@@ -148,8 +150,25 @@ public sealed class Splitter : IDisposable
         }
         catch
         {
-            // An older splitter has no such gate. Marking everything is what we did
-            // before, so fall back to that rather than marking nothing.
+            // An older splitter has no such gate. Mark everything, as before, rather
+            // than nothing.
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// Where each part's body came from in the line we handed over, one index per part.
+    /// Empty when the splitter cannot map it, or is too old to be asked. A correction
+    /// then falls back to the first word spelled the same.
+    /// </summary>
+    public List<int> BodySources(string line)
+    {
+        try
+        {
+            return SplitSourcesGate.InvokeFunc(line, DefaultByteCap) ?? [];
+        }
+        catch
+        {
             return [];
         }
     }
@@ -182,12 +201,12 @@ public sealed class Splitter : IDisposable
     }
 
     /// <summary>
-    /// Offers a chat line and gets a straight answer about what happened to it.
+    /// Offers a chat line and gets back what happened to it.
     ///
-    /// The yes-or-no version above cannot tell "not mine, you send it" from "I looked
-    /// at that and said no", and we did the wrong thing on the second: sent the
-    /// oversized line ourselves, watched the game bin it, and emptied the box anyway.
-    /// An older splitter has no such gate, so a no from it still means send it yourself.
+    /// The yes-or-no version above cannot tell "not mine, you send it" from "refused",
+    /// and we got the second one wrong: sent the oversized line ourselves, the game
+    /// binned it, and the box was cleared anyway. An older splitter has no such gate,
+    /// so a no from it still means send it yourself.
     /// </summary>
     public SplitTake Offer(string line)
     {

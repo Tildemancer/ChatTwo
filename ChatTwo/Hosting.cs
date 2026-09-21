@@ -41,8 +41,7 @@ public static class Hosting
 
     /// <summary>
     /// Resolves types named in the settings file against the running copy of Chat 2.
-    /// Without this the serializer goes and loads a second copy of the
-    /// assembly. Yikes!
+    /// Without this the serializer loads a second copy of the assembly. Yikes.
     /// </summary>
     private sealed class LocalAssemblyBinder : DefaultSerializationBinder
     {
@@ -76,7 +75,7 @@ public static class Hosting
     /// <summary>Settings existed but could not be read. Saving is refused so defaults NEVER overwrite them.</summary>
     private static bool LoadFailed;
 
-    /// <summary>Reads the configuration. When hosted, asking Dalamud for it just hands back the host plugin's config object.</summary>
+    /// <summary>Reads the configuration. When hosted, asking Dalamud for it hands back the host plugin's config object.</summary>
     public static Configuration LoadConfig()
     {
         if (!IsHosted)

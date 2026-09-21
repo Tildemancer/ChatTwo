@@ -153,6 +153,63 @@ public partial class InputPreview : Window
         // Which slice of each part is text you typed. The rest is the splitter's
         // markers, and underlining those as misspellings is just noise.
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
+
+        // TildeTools
+        // And where each of those slices came from in the line, so right-clicking a
+        // word can correct that word rather than the first one spelled like it. Empty
+        // when the splitter will not vouch for the mapping.
+        SplitSources = InputHandler.Plugin.Splitter.BodySources(line);
+
+    }
+
+    // TildeTools
+    /// <summary>Where each part's body begins in <see cref="InputHandler.ComposedLine"/>.</summary>
+    private List<int> SplitSources = [];
+
+    // TildeTools
+    /// <summary>Which split part is being drawn, or -1 for the box's own text.</summary>
+    private int SplitIndex = -1;
+
+    // TildeTools
+    /// <summary>
+    /// Turns a position inside one split part into a position in the input box, or -1
+    /// when it cannot be done.
+    ///
+    /// The composed line is the input with a channel command or tell target stuck on
+    /// the front, and the body of a part is a trimmed slice of that. So the journey is
+    /// part -> body -> composed line -> box, and any step that cannot be made honestly
+    /// gives up rather than guessing.
+    /// </summary>
+    private int SourceIndexOf(int partIndex, int positionInPart)
+    {
+        var typedText = InputHandler.ChatInput;
+        var leading = typedText.Length - typedText.TrimStart().Length;
+
+        // Nothing was split, so the drawn text is the box's own, trimmed. Only the
+        // leading spaces stand between the two. Most messages come through here, and
+        // without it the whole fix did nothing outside a split.
+        if (partIndex < 0)
+        {
+            var direct = positionInPart + leading;
+            return direct >= 0 && direct < typedText.Length ? direct : -1;
+        }
+
+        if (partIndex >= SplitSources.Count || partIndex >= SplitBodies.Count)
+            return -1;
+
+        var body = SplitBodies[partIndex];
+        var offset = positionInPart - body.Start;
+        if (offset < 0 || offset >= body.Length)
+            return -1;
+
+        var composed = SplitSources[partIndex] + offset;
+
+        // ComposeLine only ever prepends, and always to the TRIMMED input, so the gap
+        // between the two is fixed and the leading spaces have to be added back.
+        var prefix = InputHandler.ComposedLine.Length - typedText.Trim().Length;
+
+        var index = composed - prefix + leading;
+        return index >= 0 && index < typedText.Length ? index : -1;
     }
 
     public bool IsDrawable => ValidDraw && HasEvaluation;
@@ -580,10 +637,16 @@ public partial class InputPreview : Window
         // Both get saved. The marks belong to the source, so they MUST go back with it.
         var previousSource = SpellSource;
         var previousMarks = SpellMarks;
+        var previousSplitIndex = SplitIndex;
         MapsToInput = false;
 
         try
         {
+            // TildeTools
+            // Which part is being drawn, so a right-click inside it can be traced back
+            // to the place in the box that it came from.
+            SplitIndex = index;
+
             // TildeTools
             // Every part but the last was cut to length, so its words are all finished.
             // The last one is the end of what you are typing, and that word is not.
@@ -603,6 +666,7 @@ public partial class InputPreview : Window
         {
             SpellSource = previousSource;
             SpellMarks = previousMarks;
+            SplitIndex = previousSplitIndex;
             MapsToInput = true;
         }
     }
@@ -729,7 +793,14 @@ public partial class InputPreview : Window
 
                     if (!Measuring && ImGui.IsItemClicked(ImGuiMouseButton.Right))
                     {
-                        InputHandler.Spelling.SetPendingWord(misspelled);
+                        // TildeTools
+                        // Back up to the start of the word. The click lands on a letter,
+                        // and a correction needs to know where the word begins.
+                        var start = CursorPosition - 1;
+                        while (start > 0 && ReferenceEquals(SpellMarks[start - 1], misspelled))
+                            start--;
+
+                        InputHandler.Spelling.SetPendingWord(misspelled, SourceIndexOf(SplitIndex, start));
 
                         // TildeTools
                         // Flagged, not opened here: a popup is found by the id stack it

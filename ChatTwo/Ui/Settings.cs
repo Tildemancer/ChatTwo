@@ -49,7 +49,7 @@ public sealed class SettingsWindow : Window
         // TildeTools
         // Chat 2's changelog tab reads the changelog out of the plugin manifest, with a
         // "not implemented" line above it. Hosted, that manifest belongs to the host,
-        // so the tab comes up empty and wrongly labelled. Just leave it out.
+        // so the tab comes up empty and wrongly labelled. Leave it out.
         if (!Hosting.IsHosted)
             Tabs.Insert(Tabs.Count - 1, new Changelog(Mutable));
 
@@ -134,8 +134,7 @@ public sealed class SettingsWindow : Window
         // TildeTools
         // Anna's and Infi's Ko-fi links used to sit here. They live on TildeTools'
         // Credits tab now, next to what this copy changed and a note that they do not
-        // distribute it. An appeal inside someone else's plugin needs that context, and
-        // three plugins each asking on their own gave none of them any.
+        // distribute it. An appeal inside someone else's plugin needs that context.
 
         if (!save)
             return;

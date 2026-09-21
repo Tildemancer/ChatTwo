@@ -14,7 +14,7 @@ public readonly record struct Misspelling(int Start, int Length)
 
 /// <summary>
 /// Spellchecking from a plugin that provides a dictionary, when one is installed. Does nothing
-/// at all when none is. Answers are cached per string, because the preview redraws every frame.
+/// when none is. Answers are cached per string, because the preview redraws every frame.
 /// </summary>
 public sealed class SpellCheck : IDisposable
 {
@@ -28,9 +28,9 @@ public sealed class SpellCheck : IDisposable
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
     /// <summary>
-    /// Answers we've already given, keyed by the text they were about. It holds a pile of them
-    /// rather than just the last one. A split message gets checked a part at a time,
-    /// so with one slot every part just evicts the one before it.
+    /// Answers already given, keyed by the text they were about. It holds many rather than
+    /// the last one alone. A split message is checked a part at a time, so a single slot
+    /// means every part evicts the one before it.
     /// </summary>
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
 
@@ -117,7 +117,7 @@ public sealed class SpellCheck : IDisposable
 
     /// <summary>
     /// Words that might have been meant instead, best first. Cached because the open menu asks
-    /// every single frame, and a lookup costs tens of milliseconds.
+    /// every frame, and a lookup costs tens of milliseconds.
     /// </summary>
     public IReadOnlyList<string> Suggest(string word)
     {
@@ -154,8 +154,8 @@ public sealed class SpellCheck : IDisposable
     }
 
     /// <summary>
-    /// Leaves a word alone until the game restarts, without learning it. The checker does the
-    /// filtering, not us, so every text box agrees.
+    /// Leaves a word alone until the game restarts, without learning it. The filtering happens
+    /// in the checker, so every text box agrees.
     /// </summary>
     public void Ignore(string word)
     {

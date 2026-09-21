@@ -19,6 +19,16 @@ public sealed class SpellUnderline
 
     private string PendingWord = string.Empty;
 
+    /// <summary>
+    /// Where the pending word sits in the text a correction will rewrite, or -1 when we
+    /// could not work it out.
+    ///
+    /// Only the position tells two identical words apart. Without it, correcting the
+    /// fourth "teh" in a paragraph rewrote the first one, and clicking again walked
+    /// through them in order while the one under the pointer sat there unchanged.
+    /// </summary>
+    private int PendingAt = -1;
+
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
 
     /// <summary>
@@ -93,6 +103,7 @@ public sealed class SpellUnderline
 
         var rightClicked = ImGui.IsMouseClicked(ImGuiMouseButton.Right);
         var clickedWord = string.Empty;
+        var clickedAt = -1;
 
         foreach (var misspelling in misspellings)
         {
@@ -110,16 +121,37 @@ public sealed class SpellUnderline
 
             // Latch it on the click. Turns out clearing it later empties the menu just as it opens.
             if (hovered && rightClicked && mouseX >= left && mouseX <= right)
+            {
                 clickedWord = misspelling.Word(text);
+
+                // The box draws the input itself, so this is already an index into the
+                // very string a correction rewrites. Nothing to map.
+                clickedAt = misspelling.Start;
+            }
         }
 
         drawList.PopClipRect();
 
-        if (rightClicked)
+        // Only when the click landed in THIS box. It used to claim every right click
+        // anywhere, and since the preview is drawn before the input, a click in the
+        // preview was latched by the preview and then wiped here on the same frame.
+        if (rightClicked && hovered)
+        {
             PendingWord = clickedWord;
+            PendingAt = clickedAt;
+        }
     }
 
-    public void SetPendingWord(string word) => PendingWord = word;
+    /// <param name="at">
+    /// Where the word sits in the text the correction will rewrite, or -1 when the
+    /// caller cannot say. Wrong is worse than unknown here: unknown falls back to the
+    /// old first-match behaviour, wrong rewrites a word nobody pointed at.
+    /// </param>
+    public void SetPendingWord(string word, int at = -1)
+    {
+        PendingWord = word;
+        PendingAt = at;
+    }
 
     /// <summary>
     /// Adds correction entries to the caller's already-open context menu, for the word
@@ -145,11 +177,29 @@ public sealed class SpellUnderline
 
             foreach (var suggestion in suggestions.Take(8))
                 if (ImGui.Selectable(suggestion))
-                    text = ReplaceWord(text, PendingWord, suggestion);
+                    text = ReplaceWord(text, PendingWord, suggestion, PendingAt);
         }
 
         ImGui.Separator();
         return true;
+    }
+
+    /// <summary>
+    /// Swaps the occurrence at <paramref name="at"/>, or the first whole-word one when
+    /// that position is unknown or no longer holds the word.
+    ///
+    /// The same shape as the native chat box's corrections, which had this right all
+    /// along; this fork was written without it.
+    /// </summary>
+    public static string ReplaceWord(string text, string word, string replacement, int at)
+    {
+        if (at >= 0 && at + word.Length <= text.Length &&
+            string.CompareOrdinal(text, at, word, 0, word.Length) == 0)
+            return text[..at] + replacement + text[(at + word.Length)..];
+
+        // Either nobody could say where it was, or the text moved under us between the
+        // click and the pick. Back to the old behaviour rather than rewriting blind.
+        return ReplaceWord(text, word, replacement);
     }
 
     /// <summary>Swaps the first whole-word occurrence, never one sitting inside a longer word.</summary>
