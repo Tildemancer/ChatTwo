@@ -9,6 +9,7 @@ using ChatTwo.Util;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
@@ -27,8 +28,7 @@ public partial class InputPreview : Window
     // TildeTools
     /// <summary>
     /// The input the preview was last built from. Compared as text rather than length,
-    /// because swapping one letter for another leaves the length alone and still needs
-    /// a rebuild.
+    /// since swapping one letter for another leaves the length alone.
     /// </summary>
     private string LastInput = string.Empty;
     private Message? PreviewMessage;
@@ -68,12 +68,18 @@ public partial class InputPreview : Window
             PreviewMessage = null;
             HasEvaluation = false;
 
+            // TildeTools
+            // A drag ends when the button comes up, which is only noticed while drawing.
+            // Stop drawing mid-drag and the drag state survives into the next preview.
+            DragAnchor = -1;
+            DragHead = -1;
+
             return;
         }
 
         // TildeTools
-        // Complete when the last keystroke was a space: that is what the checker reads
-        // to decide a word is done, and Trim below would otherwise throw it away.
+        // Complete when the last keystroke was a space. That is the checker's signal
+        // that a word is done, and the Trim below would throw it away.
         var typed = InputHandler.ChatInput;
         SetSpellSource(typed.Trim(), complete: typed.Length > 0 && char.IsWhiteSpace(typed[^1]));
 
@@ -123,7 +129,7 @@ public partial class InputPreview : Window
 
     // TildeTools
     /// <summary>
-    /// Asks the splitter how the message divides up, but only when it changes. It's a
+    /// Asks the splitter how the message divides up, but only when it changes. It is a
     /// cross-plugin call and the preview draws every frame, so asking each time adds up.
     /// </summary>
     private void UpdateSplitParts()
@@ -151,13 +157,13 @@ public partial class InputPreview : Window
 
         // TildeTools
         // Which slice of each part is text you typed. The rest is the splitter's
-        // markers, and underlining those as misspellings is just noise.
+        // markers, and underlining those as misspellings is noise.
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
 
         // TildeTools
-        // And where each of those slices came from in the line, so right-clicking a
-        // word can correct that word rather than the first one spelled like it. Empty
-        // when the splitter will not vouch for the mapping.
+        // And where each slice came from in the line, so right-clicking a word corrects
+        // that word rather than the first one spelled like it. Empty when the splitter
+        // cannot map it.
         SplitSources = InputHandler.Plugin.Splitter.BodySources(line);
 
     }
@@ -171,14 +177,71 @@ public partial class InputPreview : Window
     private int SplitIndex = -1;
 
     // TildeTools
+    /// <summary>Boundary the drag started from, in box positions, or -1 when not dragging.</summary>
+    private int DragAnchor = -1;
+
+    // TildeTools
+    /// <summary>Boundary the drag has reached.</summary>
+    private int DragHead = -1;
+
+    // TildeTools
+    /// <summary>A range to select in the box, handed over once the drag is let go.</summary>
+    public int SelectedRangeStart = -1;
+    public int SelectedRangeEnd = -1;
+
+    // TildeTools
+    /// <summary>Whether a letter ending at this boundary falls inside the live drag.</summary>
+    private bool InDrag(int caret) =>
+        caret >= 0 && DragAnchor >= 0 && DragHead >= 0 &&
+        caret - 1 >= Math.Min(DragAnchor, DragHead) &&
+        caret <= Math.Max(DragAnchor, DragHead);
+
+    // TildeTools
+    /// <summary>
+    /// Whether this letter is shown as selected: inside a drag happening here, or
+    /// inside the box's own selection.
+    ///
+    /// Both are in box positions, so one comparison does for both. The box's selection
+    /// is a frame behind, since the preview draws first.
+    /// </summary>
+    private bool InSelection(int caret)
+    {
+        if (InDrag(caret))
+            return true;
+
+        var (from, to) = InputHandler.Spelling.InputSelection;
+
+        return caret >= 0 && from >= 0 && caret - 1 >= from && caret <= to;
+    }
+
+    // TildeTools
+    /// <summary>
+    /// Where the caret goes for a click on the letter ending at <paramref name="afterLetter"/>
+    /// in the drawn text, or -1 when the click should do nothing.
+    ///
+    /// The caret lands after the letter, as a text box does, so the hover mark is drawn
+    /// on the letter's trailing edge rather than over it.
+    /// </summary>
+    private int CaretTargetFor(int afterLetter)
+    {
+        if (MapsToInput)
+            return afterLetter;
+
+        // A split part carries a channel command and markers of ours, so a position in
+        // it means nothing to the box until it has been traced back.
+        var mapped = SourceIndexOf(SplitIndex, afterLetter - 1);
+        return mapped < 0 ? -1 : mapped + 1;
+    }
+
+    // TildeTools
     /// <summary>
     /// Turns a position inside one split part into a position in the input box, or -1
     /// when it cannot be done.
     ///
-    /// The composed line is the input with a channel command or tell target stuck on
-    /// the front, and the body of a part is a trimmed slice of that. So the journey is
-    /// part -> body -> composed line -> box, and any step that cannot be made honestly
-    /// gives up rather than guessing.
+    /// The composed line is the input with a channel command or tell target on the
+    /// front, and a part's body is a trimmed slice of that. The route is part -> body
+    /// -> composed line -> box. Any step that cannot be made returns -1 rather than
+    /// guessing.
     /// </summary>
     private int SourceIndexOf(int partIndex, int positionInPart)
     {
@@ -186,8 +249,7 @@ public partial class InputPreview : Window
         var leading = typedText.Length - typedText.TrimStart().Length;
 
         // Nothing was split, so the drawn text is the box's own, trimmed. Only the
-        // leading spaces stand between the two. Most messages come through here, and
-        // without it the whole fix did nothing outside a split.
+        // leading spaces stand between the two. Most messages come through here.
         if (partIndex < 0)
         {
             var direct = positionInPart + leading;
@@ -286,7 +348,7 @@ public partial class InputPreview : Window
         PreviewHeight = 0;
 
         // TildeTools
-        // The width text actually gets, inside the window's padding.
+        // The width text gets, inside the window's padding.
         var sidePadding = ImGui.GetStyle().WindowPadding.X * 2;
         ColumnWidth = Math.Max(120f, InputHandler.MainWindow.LastWindowSize.X - sidePadding);
         PreviewWidth = ColumnWidth + sidePadding;
@@ -387,7 +449,7 @@ public partial class InputPreview : Window
     // TildeTools
     /// <summary>
     /// Draws a block into a hidden child of one column's width and reports its height.
-    /// It has to be that width, since text wraps against whatever region it's drawn in.
+    /// It has to be that width, since text wraps against the region it is drawn in.
     /// </summary>
     private float MeasureColumn(Action draw)
     {
@@ -395,8 +457,8 @@ public partial class InputPreview : Window
         var height = 0f;
 
         // TildeTools
-        // Left at the cursor, one pixel tall. Move the child outside its parent instead
-        // and ImGui culls it, and a culled child measures as zero height. Oops.
+        // Left at the cursor, one pixel tall. Move the child outside its parent and
+        // ImGui culls it, and a culled child measures zero. Oops.
         using (var child = ImRaii.Child("##preview-measure", new Vector2(ColumnWidth, 1f), false,
                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoInputs))
         {
@@ -418,6 +480,23 @@ public partial class InputPreview : Window
 
     public void DrawPreview()
     {
+        // TildeTools
+        // A drag ends wherever the button came up, often nowhere near a letter, so it
+        // is finished here rather than in the letter loop. Handed over only on release:
+        // setting it every frame drags keyboard focus into the box mid-drag.
+        if (DragAnchor >= 0 && !ImGui.IsMouseDown(ImGuiMouseButton.Left))
+        {
+            if (DragHead >= 0 && DragHead != DragAnchor)
+            {
+                SelectedRangeStart = Math.Min(DragAnchor, DragHead);
+                SelectedRangeEnd = Math.Max(DragAnchor, DragHead);
+                InputHandler.FocusedPreview = true;
+            }
+
+            DragAnchor = -1;
+            DragHead = -1;
+        }
+
         if (SplitMessages is null)
         {
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
@@ -431,9 +510,8 @@ public partial class InputPreview : Window
         }
 
         // TildeTools
-        // A tooltip sizes itself, so it gets one column. The columns from
-        // window mode linger after a switch to tooltip, so the mode gets checked as
-        // well as the count.
+        // A tooltip sizes itself, so one column. Window-mode columns linger after a
+        // switch to tooltip, so check the mode as well as the count.
         if (!IsWindowMode || Columns.Count == 0)
         {
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
@@ -498,19 +576,18 @@ public partial class InputPreview : Window
     /// <summary>
     /// Points the marks at a piece of text.
     ///
-    /// <paramref name="complete"/> says the text is not being typed into any more.
-    /// The checker leaves the final word alone unless something says it is finished,
-    /// which it reads off trailing whitespace — and the text drawn here has been
-    /// trimmed, so that signal is gone by the time it arrives. Without this the
-    /// preview trails a word behind the box, and the last word of every split part
-    /// never gets checked at all.
+    /// <paramref name="complete"/> says the text is not being typed into any more. The
+    /// checker leaves the final word alone unless trailing whitespace says it is
+    /// finished, and the text drawn here is trimmed, so that signal is gone. Without
+    /// this the preview trails a word behind the box, and the last word of every split
+    /// part is never checked.
     /// </summary>
     private void SetSpellSource(string text, bool complete = false, (int Start, int Length)? body = null)
     {
         // TildeTools
         // The span is part of the key: the same part text with a different body slice
-        // wants different marks. Without it in here, passing a span would rebuild every
-        // frame, and rebuilding means a cross-plugin call per frame per part.
+        // needs different marks. Without it, passing a span rebuilds every frame, and a
+        // rebuild is a cross-plugin call per part per frame.
         if (ReferenceEquals(SpellSource, text) && SpellMarks.Length == text.Length && SpellBody == body)
             return;
 
@@ -519,8 +596,8 @@ public partial class InputPreview : Window
         SpellMarks = new string?[text.Length];
 
         // TildeTools
-        // Only the typed part is worth checking. The markers around it are ours and
-        // would otherwise come back as misspellings, which they are.
+        // Only the typed part is checked. The markers around it are ours, and come back
+        // as misspellings otherwise.
         var from = 0;
         var to = text.Length;
 
@@ -531,14 +608,13 @@ public partial class InputPreview : Window
         }
 
         // TildeTools
-        // Padded only for the check. The marks still line up with the drawn text,
-        // and the extra position is never looked at.
+        // Padded only for the check. The marks still line up with the drawn text, and
+        // the extra position is never read.
         //
-        // Unfinished, it gets cut at the end of the body instead. The checker decides
-        // whether the last word is still being typed by looking at the last character
-        // it was handed, and on the closing part that character is ours — the "]" of a
-        // final marker, or an OOC bracket — which made every word look finished and
-        // put a line under the one you were still halfway through.
+        // Unfinished, it is cut at the end of the body instead. The checker takes the
+        // last character it was handed as the signal, and on the closing part that
+        // character is ours: the "]" of a final marker, or an OOC bracket. Every word
+        // then looked finished, and the half-typed one got a line under it.
         var forCheck = complete
             ? text.Length > 0 ? text + " " : text
             : text[..to];
@@ -557,10 +633,10 @@ public partial class InputPreview : Window
 
     // TildeTools
     /// <summary>
-    /// Whether the last word of what has been typed is finished, by the same rule the
-    /// checker uses. Whitespace alone was not enough: close an OOC note and the last
-    /// thing you typed is a bracket, which the splitter lifts off the body, so the
-    /// preview cut the sentence short and stopped marking a word the box still marked.
+    /// Whether the last typed word is finished, by the same rule the checker uses.
+    /// Whitespace alone was not enough: close an OOC note and the last character typed
+    /// is a bracket, which the splitter lifts off the body, so the preview stopped
+    /// marking a word the box still marked.
     /// </summary>
     private static bool FinishedTyping(string typed) =>
         typed.Length > 0 &&
@@ -568,7 +644,11 @@ public partial class InputPreview : Window
          (char.IsPunctuation(typed[^1]) && typed[^1] is not ('\'' or '-')));
 
     // TildeTools
-    /// <summary>Whether clicking a letter should move the cursor in the input box.</summary>
+    /// <summary>
+    /// Whether the drawn text IS the box's text, so a position in it needs no working
+    /// out. False while a split part is being drawn, where the same click has to be
+    /// traced back through <see cref="SourceIndexOf"/> instead.
+    /// </summary>
     private bool MapsToInput = true;
 
     // TildeTools
@@ -643,8 +723,8 @@ public partial class InputPreview : Window
         try
         {
             // TildeTools
-            // Which part is being drawn, so a right-click inside it can be traced back
-            // to the place in the box that it came from.
+            // Which part is being drawn, so a right-click in it can be traced back to
+            // the place in the box it came from.
             SplitIndex = index;
 
             // TildeTools
@@ -690,8 +770,8 @@ public partial class InputPreview : Window
             else if (chunks[i].Link is EmotePayload && Plugin.Config.ShowEmotes)
             {
                 // TildeTools
-                // Emote payloads don't add newlines themselves, which breaks
-                // non-modern mode.
+                // Emote payloads add no newline of their own, which breaks non-modern
+                // mode.
                 ImGui.SameLine();
                 ImGui.TextUnformatted("");
             }
@@ -722,12 +802,12 @@ public partial class InputPreview : Window
             emoteSize = emoteSize with { Y = emoteSize.X } * 1.5f;
 
             // TildeTools
-            // TextWrap doesn't work for emotes, so wrap manually.
+            // TextWrap does not work for emotes, so wrap manually.
             if (ImGui.GetContentRegionAvail().X < emoteSize.X)
                 ImGui.NewLine();
 
             // TildeTools
-            // Dummy while loading; on failure fall through to the name.
+            // Dummy while loading. On failure, fall through to the name.
             var image = EmoteCache.GetEmote(emotePayload.Code);
             if (image is { Failed: false })
             {
@@ -766,6 +846,20 @@ public partial class InputPreview : Window
             return;
         }
 
+        // TildeTools
+        // Every letter is a Selectable so it can be clicked, and a Selectable paints a
+        // box behind itself on hover. That box sat ON the letter while the caret goes
+        // AFTER it, so the hover colour is cleared and a caret is drawn where the click
+        // would land.
+        //
+        // The selected colour stays and does the drag highlight. Drawing it ourselves
+        // meant a filled rect OVER the glyph, tinting the letter. The Selectable puts
+        // it behind, the way a text selection looks everywhere else.
+        using var letterColours = ImRaii
+            .PushColor(ImGuiCol.Header, ImGui.GetColorU32(ImGuiCol.TextSelectedBg))
+            .Push(ImGuiCol.HeaderHovered, 0u)
+            .Push(ImGuiCol.HeaderActive, 0u);
+
         foreach (var word in WhitespaceRegex().Split(text.Content).Where(s => s != string.Empty))
         {
             var wordSize = ImGui.CalcTextSize(word);
@@ -777,14 +871,57 @@ public partial class InputPreview : Window
                 var letterSize = ImGui.CalcTextSize(letter.ToString());
 
                 CursorPosition++;
-                if (ImGui.Selectable($"{letter}##{CursorPosition + unique}", false, ImGuiSelectableFlags.None, letterSize)
-                    && MapsToInput)
+
+                // TildeTools
+                // Worked out before the letter is drawn, so everything below uses the
+                // same value.
+                var caret = CaretTargetFor(CursorPosition);
+
+                var clicked = ImGui.Selectable(
+                    $"{letter}##{CursorPosition + unique}", InSelection(caret), ImGuiSelectableFlags.None, letterSize);
+
+                // TildeTools
+                // Drag to select. Boundary is whichever half of the letter the pointer
+                // is on, so a drag starting inside a word starts where you aimed.
+                if (caret >= 0 && !Measuring)
                 {
-                    // TildeTools
-                    // Only when the drawn text is the input itself: a split part
-                    // carries markers the box does not.
-                    SelectedCursorPos = CursorPosition;
+                    var from = ImGui.GetItemRectMin();
+                    var to = ImGui.GetItemRectMax();
+                    var mouse = ImGui.GetIO().MousePos;
+
+                    var over = mouse.X >= from.X && mouse.X <= to.X &&
+                               mouse.Y >= from.Y && mouse.Y <= to.Y;
+
+                    if (over)
+                    {
+                        var boundary = mouse.X < (from.X + to.X) / 2f ? caret - 1 : caret;
+
+                        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                            DragAnchor = DragHead = boundary;
+                        else if (DragAnchor >= 0 && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+                            DragHead = boundary;
+                    }
+                }
+
+                if (clicked && caret >= 0)
+                {
+                    SelectedCursorPos = caret;
                     InputHandler.FocusedPreview = true;
+                }
+
+                // TildeTools
+                // A line where the caret will go, on the trailing edge of the letter.
+                // Nothing over a marker, since clicking one does nothing.
+                if (caret >= 0 && !Measuring && ImGui.IsItemHovered())
+                {
+                    var edge = ImGui.GetItemRectMax().X;
+                    var top = ImGui.GetItemRectMin().Y;
+
+                    ImGui.GetWindowDrawList().AddLine(
+                        new Vector2(edge, top),
+                        new Vector2(edge, ImGui.GetItemRectMax().Y),
+                        ImGui.GetColorU32(ImGuiCol.Text),
+                        ImGuiHelpers.GlobalScale);
                 }
 
                 if (MisspelledWordAt(CursorPosition - 1) is { } misspelled)
@@ -795,7 +932,7 @@ public partial class InputPreview : Window
                     {
                         // TildeTools
                         // Back up to the start of the word. The click lands on a letter,
-                        // and a correction needs to know where the word begins.
+                        // and the correction needs where the word begins.
                         var start = CursorPosition - 1;
                         while (start > 0 && ReferenceEquals(SpellMarks[start - 1], misspelled))
                             start--;

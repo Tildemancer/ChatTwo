@@ -20,12 +20,12 @@ public sealed class SpellUnderline
     private string PendingWord = string.Empty;
 
     /// <summary>
-    /// Where the pending word sits in the text a correction will rewrite, or -1 when we
-    /// could not work it out.
+    /// Where the pending word sits in the text a correction will rewrite, or -1 when
+    /// unknown.
     ///
     /// Only the position tells two identical words apart. Without it, correcting the
-    /// fourth "teh" in a paragraph rewrote the first one, and clicking again walked
-    /// through them in order while the one under the pointer sat there unchanged.
+    /// fourth "teh" in a paragraph rewrote the first one, and the one clicked stayed
+    /// where it was.
     /// </summary>
     private int PendingAt = -1;
 
@@ -34,13 +34,13 @@ public sealed class SpellUnderline
     /// <summary>
     /// How far the box has scrolled sideways.
     ///
-    /// Taken off the input's own state rather than worked out. The caret only tells
-    /// you where the scroll must be while you are typing at the end of the line —
-    /// move the cursor back into the middle and the true offset can sit anywhere in
-    /// a box-width range, which is why guessing it drifted further the more was typed.
+    /// Taken off the input's own state, not worked out from the caret. The caret only
+    /// pins the scroll down while you are typing at the end of the line. Move the
+    /// cursor back into the middle and the true offset can sit anywhere in a box-width
+    /// range, so guessing drifted further the more was typed.
     ///
-    /// There is no state until the box has been clicked into, and an unfocused box
-    /// draws from the start, so nothing to offset by then.
+    /// No state until the box has been clicked into, and an unfocused box draws from
+    /// the start, so there is nothing to offset by then.
     /// </summary>
     private static unsafe float ScrollOffset()
     {
@@ -63,11 +63,41 @@ public sealed class SpellUnderline
     }
 
     /// <summary>
+    /// What the box currently has selected, as positions in its own text, or (-1, -1)
+    /// for nothing. Read so the preview can show the same selection.
+    /// </summary>
+    public (int Start, int End) InputSelection { get; private set; } = (-1, -1);
+
+    /// <summary>
+    /// Reads that selection off the box's own state. MUST run while the input is the
+    /// current item, and before the early exits below. Text with nothing misspelled in
+    /// it still has a selection worth mirroring.
+    /// </summary>
+    private unsafe void CaptureInputSelection()
+    {
+        var state = ImGuiP.GetInputTextState(ImGuiP.GetItemID());
+        if (state.IsNull)
+        {
+            InputSelection = (-1, -1);
+            return;
+        }
+
+        var from = state.Stb.SelectStart;
+        var to = state.Stb.SelectEnd;
+
+        InputSelection = from == to
+            ? (-1, -1)
+            : (Math.Min(from, to), Math.Max(from, to));
+    }
+
+    /// <summary>
     /// Underlines the misspellings in the input just drawn, and offers corrections on
     /// right-click. Call this IMMEDIATELY after the input, while its box is current.
     /// </summary>
     public void DrawForInput(ref string text)
     {
+        CaptureInputSelection();
+
         if (string.IsNullOrEmpty(text) || !Plugin.SpellCheck.IsAvailable)
             return;
 
@@ -92,9 +122,8 @@ public sealed class SpellUnderline
         var colour = ImGui.GetColorU32(Colour);
         var thick = Thickness * ImGuiHelpers.GlobalScale;
 
-        // Just under the text, but never past the bottom of the box. A style with
-        // little vertical padding, scaled up, would otherwise hang the line outside
-        // the frame it belongs to.
+        // Just under the text, never past the bottom of the box. Little vertical
+        // padding, scaled up, would otherwise hang the line outside the frame.
         var y = Math.Min(
             min.Y + size.Y - ImGui.GetStyle().FramePadding.Y + Drop * ImGuiHelpers.GlobalScale,
             min.Y + size.Y - thick);
@@ -110,31 +139,30 @@ public sealed class SpellUnderline
             if (misspelling.Start < 0 || misspelling.Start + misspelling.Length > text.Length)
                 continue;
 
-            // The whole prefix each time, rather than adding up the gaps between the
-            // marked words. Turns out CalcTextSize rounds every call up to a whole
-            // pixel, so a running total slides a pixel further right per word it has
-            // passed, and by the tenth one the line is sitting off the end of it.
+            // Whole prefix each time, not a running total. Turns out CalcTextSize
+            // rounds each call up to a whole pixel, so the total drifts a pixel per
+            // word. By the tenth the line sits off the end.
             var left = min.X + inset - scroll + ImGui.CalcTextSize(text.AsSpan(0, misspelling.Start)).X;
             var right = left + ImGui.CalcTextSize(text.Substring(misspelling.Start, misspelling.Length)).X;
 
             drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, thick);
 
-            // Latch it on the click. Turns out clearing it later empties the menu just as it opens.
+            // Latch it on the click. Clearing it later empties the menu as it opens.
             if (hovered && rightClicked && mouseX >= left && mouseX <= right)
             {
                 clickedWord = misspelling.Word(text);
 
                 // The box draws the input itself, so this is already an index into the
-                // very string a correction rewrites. Nothing to map.
+                // string a correction rewrites. Nothing to map.
                 clickedAt = misspelling.Start;
             }
         }
 
         drawList.PopClipRect();
 
-        // Only when the click landed in THIS box. It used to claim every right click
-        // anywhere, and since the preview is drawn before the input, a click in the
-        // preview was latched by the preview and then wiped here on the same frame.
+        // Only when the click landed in THIS box. This used to fire on every right
+        // click anywhere. The preview draws before the input, so a click latched in
+        // the preview got wiped here on the same frame.
         if (rightClicked && hovered)
         {
             PendingWord = clickedWord;
@@ -144,8 +172,8 @@ public sealed class SpellUnderline
 
     /// <param name="at">
     /// Where the word sits in the text the correction will rewrite, or -1 when the
-    /// caller cannot say. Wrong is worse than unknown here: unknown falls back to the
-    /// old first-match behaviour, wrong rewrites a word nobody pointed at.
+    /// caller cannot say. Unknown falls back to first-match. A wrong index rewrites a
+    /// word nobody clicked.
     /// </param>
     public void SetPendingWord(string word, int at = -1)
     {
@@ -188,8 +216,7 @@ public sealed class SpellUnderline
     /// Swaps the occurrence at <paramref name="at"/>, or the first whole-word one when
     /// that position is unknown or no longer holds the word.
     ///
-    /// The same shape as the native chat box's corrections, which had this right all
-    /// along; this fork was written without it.
+    /// Same shape as the native chat box's corrections.
     /// </summary>
     public static string ReplaceWord(string text, string word, string replacement, int at)
     {
@@ -197,8 +224,8 @@ public sealed class SpellUnderline
             string.CompareOrdinal(text, at, word, 0, word.Length) == 0)
             return text[..at] + replacement + text[(at + word.Length)..];
 
-        // Either nobody could say where it was, or the text moved under us between the
-        // click and the pick. Back to the old behaviour rather than rewriting blind.
+        // Position unknown, or the text moved between the click and the pick. Back to
+        // first-match rather than rewriting blind.
         return ReplaceWord(text, word, replacement);
     }
 

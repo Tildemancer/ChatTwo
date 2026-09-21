@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text;
 using ChatTwo.Code;
 using ChatTwo.GameFunctions;
 using ChatTwo.GameFunctions.Types;
@@ -63,7 +64,7 @@ public class InputHandler
     // TildeTools
     /// <summary>
     /// The line the current input would go out as, for the preview. Set here because
-    /// this is where we know which tab is active.
+    /// this is where the active tab is known.
     /// </summary>
     public string ComposedLine { get; private set; } = string.Empty;
 
@@ -111,9 +112,8 @@ public class InputHandler
                 var flags = InputFlags | (!isChatEnabled ? ImGuiInputTextFlags.ReadOnly : ImGuiInputTextFlags.None);
                 ImGui.SetNextItemWidth(inputWidth);
                 // TildeTools
-                // 500 is the game's own limit. A splitter plugin can push this higher,
-                // and then it is on the splitter to cut the result up. With no splitter
-                // loaded it stays 500 and nothing changes.
+                // 500 is the game's own limit. A splitter can raise it, and cutting the
+                // result up is then the splitter's job. With none loaded it stays 500.
                 ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, Plugin.Splitter.InputByteCap, flags, Callback);
 
                 // TildeTools
@@ -198,6 +198,15 @@ public class InputHandler
         }
     }
 
+    // TildeTools
+    /// <summary>
+    /// A character position, as the preview counts them, turned into a byte position,
+    /// which is what the input box works in. Identical for plain English. An accent in
+    /// a name is where the two part company.
+    /// </summary>
+    private static int ByteIndex(string text, int position) =>
+        Encoding.UTF8.GetByteCount(text.AsSpan(0, Math.Clamp(position, 0, text.Length)));
+
     private bool IsValidCommand(string command)
     {
         return Plugin.CommandManager.Commands.ContainsKey(command) || Plugin.Commands.AllCommands.ContainsKey(command);
@@ -215,8 +224,28 @@ public class InputHandler
         // Set the cursor pos to the user selected
         if (Plugin.InputPreview.SelectedCursorPos != -1)
         {
-            data.CursorPos = Plugin.InputPreview.SelectedCursorPos;
+            data.CursorPos = ByteIndex(ChatInput, Plugin.InputPreview.SelectedCursorPos);
+
+            // TildeTools
+            // Collapse whatever was selected onto the new position, the way clicking in
+            // a text field does. The cursor and the selection are separate state here,
+            // so moving one and not the other left the old highlight behind.
+            data.SelectionStart = data.CursorPos;
+            data.SelectionEnd = data.CursorPos;
+
             Plugin.InputPreview.SelectedCursorPos = -1;
+        }
+
+        // TildeTools
+        // A range dragged out in the preview.
+        if (Plugin.InputPreview.SelectedRangeStart != -1)
+        {
+            data.SelectionStart = ByteIndex(ChatInput, Plugin.InputPreview.SelectedRangeStart);
+            data.SelectionEnd = ByteIndex(ChatInput, Plugin.InputPreview.SelectedRangeEnd);
+            data.CursorPos = data.SelectionEnd;
+
+            Plugin.InputPreview.SelectedRangeStart = -1;
+            Plugin.InputPreview.SelectedRangeEnd = -1;
         }
 
         CursorPos = data.CursorPos;
