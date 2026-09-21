@@ -188,16 +188,22 @@ public unsafe class GameFunctions : IDisposable
 
     public static void OpenQuestLog(RowRef<Quest> quest)
     {
+        if (!quest.IsValid)
+        {
+            Plugin.ChatGui.PrintError("Quest is wrongly formatted");
+            return;
+        }
+
         var splits = quest.Value.Id.ToString().Split("_");
         if (splits.Length != 2)
         {
-            Plugin.ChatGui.Print("QuestId is wrongly formatted");
+            Plugin.ChatGui.PrintError("QuestId is wrongly formatted");
             return;
         }
 
         if (!uint.TryParse(splits[1], NumberStyles.Any, CultureInfo.InvariantCulture,  out var questId))
         {
-            Plugin.ChatGui.Print("Unable to parse quest id");
+            Plugin.ChatGui.PrintError("Unable to parse quest id");
             return;
         }
 
