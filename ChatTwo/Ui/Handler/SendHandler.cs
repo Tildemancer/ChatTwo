@@ -50,7 +50,9 @@ public class SendHandler
         return $"{prefix} {trimmed}";
     }
 
-    public void SendChatBox(Tab activeTab, ref string chatInput, ref bool tellSpecial)
+    // TildeTools
+    // False when the text stays in the box, so the caller keeps the temp channel for the retry
+    public bool SendChatBox(Tab activeTab, ref string chatInput, ref bool tellSpecial)
     {
         if (!string.IsNullOrWhiteSpace(chatInput))
         {
@@ -65,14 +67,14 @@ public class SendHandler
                 && (tellSpecial || StartsWithTranslationCommand(trimmed)))
             {
                 Plugin.ChatGui.PrintError("[Chat 2] That message is too long to send this way, so it was kept in the box.");
-                return;
+                return false;
             }
 
             if (HasTranslationCommand(trimmed))
             {
                 activeTab.CurrentChannel.ResetTempChannel();
                 chatInput = string.Empty;
-                return;
+                return true;
             }
 
             if (tellSpecial)
@@ -85,7 +87,7 @@ public class SendHandler
 
                 activeTab.CurrentChannel.ResetTempChannel();
                 chatInput = string.Empty;
-                return;
+                return true;
             }
 
             if (!trimmed.StartsWith('/'))
@@ -112,13 +114,13 @@ public class SendHandler
                             {
                                 activeTab.CurrentChannel.ResetTempChannel();
                                 chatInput = string.Empty;
-                                return;
+                                return true;
                             }
 
                             // TildeTools
                             // Refused: sent anyway it's dropped for length and the text's gone, so keep it in the box
                             if (tellTake == SplitTake.Refused)
-                                return;
+                                return false;
                         }
 
                         var tellBytes = Encoding.UTF8.GetBytes(trimmed);
@@ -128,7 +130,7 @@ public class SendHandler
 
                         activeTab.CurrentChannel.ResetTempChannel();
                         chatInput = string.Empty;
-                        return;
+                        return true;
                     }
 
                     var reason = target.Reason;
@@ -146,7 +148,7 @@ public class SendHandler
 
                     activeTab.CurrentChannel.ResetTempChannel();
                     chatInput = string.Empty;
-                    return;
+                    return true;
                 }
 
                 if (activeTab.CurrentChannel.UseTempChannel)
@@ -162,9 +164,9 @@ public class SendHandler
                 : SplitTake.NotTaken;
 
             // TildeTools
-            // Must not go out as is. Returning keeps the text, the clear below runs regardless
+            // Must not go out as is. False keeps the text, and the caller keeps its temp channel
             if (take == SplitTake.Refused)
-                return;
+                return false;
 
             if (take == SplitTake.NotTaken)
             {
@@ -177,6 +179,7 @@ public class SendHandler
 
         activeTab.CurrentChannel.ResetTempChannel();
         chatInput = string.Empty;
+        return true;
     }
 
     // TildeTools

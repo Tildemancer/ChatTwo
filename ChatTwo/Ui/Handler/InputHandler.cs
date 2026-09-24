@@ -141,9 +141,11 @@ public class InputHandler
                 if (ImGui.IsKeyDown(ImGuiKey.Enter) || ImGui.IsKeyDown(ImGuiKey.KeypadEnter))
                 {
                     Plugin.CommandHelpWindow.IsOpen = false;
-                    SendHandler.SendChatBox(activeTab, ref ChatInput, ref tellSpecial);
+                    // TildeTools
+                    // Kept in the box keeps the temp channel too, or the retry goes out on the base one
+                    var sent = SendHandler.SendChatBox(activeTab, ref ChatInput, ref tellSpecial);
 
-                    if (activeTab.CurrentChannel.UseTempChannel)
+                    if (sent && activeTab.CurrentChannel.UseTempChannel)
                     {
                         activeTab.CurrentChannel.ResetTempChannel();
                         Plugin.Functions.Chat.SetChannelWithExtraChat(activeTab.CurrentChannel.Channel);
