@@ -602,18 +602,48 @@ public partial class InputPreview : Window
     /// this the preview trails a word behind the box, and the last word of every split
     /// part is never checked.
     /// </summary>
+    // TildeTools
+    /// <summary>Marks already worked out, by text, completeness and body span.</summary>
+    private readonly Dictionary<(string Text, bool Complete, (int Start, int Length)? Body), string?[]> MarksFor = [];
+
+    // TildeTools
+    /// <summary>A split preview needs one entry per part, plus the whole line.</summary>
+    private const int MostMarksToRemember = 64;
+
+    // TildeTools
+    /// <summary>The checker's generation <see cref="MarksFor"/> was filled under.</summary>
+    private int MarksGeneration;
+
     private void SetSpellSource(string text, bool complete = false, (int Start, int Length)? body = null)
     {
         // TildeTools
-        // The span is part of the key: the same part text with a different body slice
-        // needs different marks. Without it, passing a span rebuilds every frame, and a
-        // rebuild is a cross-plugin call per part per frame.
-        if (ReferenceEquals(SpellSource, text) && SpellMarks.Length == text.Length && SpellBody == body)
-            return;
-
+        // Remembered by value, per text, span and completeness. Keyed on the string
+        // instance, it rebuilt every frame: Trim makes a new string whenever the input
+        // ends in a space, and a split preview swaps each part in and back out, so
+        // every part rebuilt too. Each rebuild allocated an array the message's length.
         SpellSource = text;
         SpellBody = body;
+
+        // A word added or ignored changes the answers for text that has not changed.
+        var generation = InputHandler.Plugin.SpellCheck.Generation;
+        if (generation != MarksGeneration)
+        {
+            MarksFor.Clear();
+            MarksGeneration = generation;
+        }
+
+        var key = (text, complete, body);
+        if (MarksFor.TryGetValue(key, out var remembered))
+        {
+            SpellMarks = remembered;
+            return;
+        }
+
+        if (MarksFor.Count >= MostMarksToRemember)
+            MarksFor.Clear();
+
         SpellMarks = new string?[text.Length];
+        MarksFor[key] = SpellMarks;
 
         // TildeTools
         // Only the typed part is checked. The markers around it are ours, and come back

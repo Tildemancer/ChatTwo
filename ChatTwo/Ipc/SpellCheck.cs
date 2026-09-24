@@ -34,6 +34,12 @@ public sealed class SpellCheck : IDisposable
     /// </summary>
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
 
+    /// <summary>
+    /// Moves on whenever the answers change: a new dictionary, a word added or ignored.
+    /// Anything that remembers results should drop them when this moves.
+    /// </summary>
+    public int Generation { get; private set; }
+
     /// <summary>Cleared all at once rather than aged out, since the keys are half-typed words.</summary>
     private const int MostToRemember = 64;
 
@@ -59,6 +65,7 @@ public sealed class SpellCheck : IDisposable
         // A new dictionary invalidates every cached answer.
         Cached.Clear();
         LastSuggested = string.Empty;
+        Generation++;
     }
 
     public void Refresh()
@@ -151,6 +158,7 @@ public sealed class SpellCheck : IDisposable
 
         Cached.Clear();
         LastSuggested = string.Empty;
+        Generation++;
     }
 
     /// <summary>
@@ -170,6 +178,7 @@ public sealed class SpellCheck : IDisposable
 
         Cached.Clear();
         LastSuggested = string.Empty;
+        Generation++;
     }
 
     public void Dispose()
