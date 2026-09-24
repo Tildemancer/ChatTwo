@@ -112,7 +112,6 @@ public class InputHandler
                 ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, Plugin.Splitter.InputByteCap, flags, Callback);
 
                 // TildeTools
-                // Drawn over the input, which can't colour its own contents
                 Spelling.DrawForInput(ref ChatInput);
             }
             var inputActive = ImGui.IsItemActive();

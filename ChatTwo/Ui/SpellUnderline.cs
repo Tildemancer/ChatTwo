@@ -198,7 +198,6 @@ public sealed class SpellUnderline
         return ReplaceWord(text, word, replacement);
     }
 
-    // Never one inside a longer word
     public static string ReplaceWord(string text, string word, string replacement)
     {
         for (var i = text.IndexOf(word, StringComparison.Ordinal); i >= 0;

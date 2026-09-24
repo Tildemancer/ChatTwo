@@ -26,7 +26,6 @@ public partial class InputPreview : Window
     public float PreviewHeight;
 
     // TildeTools
-    // Text, not length: swapping a letter keeps the length
     private string LastInput = string.Empty;
     private Message? PreviewMessage;
 

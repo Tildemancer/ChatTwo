@@ -29,7 +29,6 @@ public sealed class SpellCheck : IDisposable
     // Moves when answers change (new dictionary, word added or ignored). Drop remembered results when it does
     public int Generation { get; private set; }
 
-    // Cleared at once rather than aged out, the keys are half-typed words
     private const int MostToRemember = 64;
 
     public SpellCheck()

@@ -49,7 +49,6 @@ public sealed class Splitter : IDisposable
         IntervalMsGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.IntervalMs");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Split.Available");
 
-        // Fires when the splitter loads after Chat 2
         AvailableGate.Subscribe(Refresh);
 
         Refresh();
