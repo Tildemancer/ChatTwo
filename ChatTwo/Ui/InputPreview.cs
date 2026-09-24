@@ -166,6 +166,9 @@ public partial class InputPreview : Window
     private List<(int Start, int Length)> SplitBodies = [];
 
     // TildeTools
+    private int SplitPostingMs;
+
+    // TildeTools
     private bool Measuring;
 
     // TildeTools
@@ -193,6 +196,7 @@ public partial class InputPreview : Window
 
         // TildeTools
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
+        SplitPostingMs = InputHandler.Plugin.Splitter.PostingMs(line);
 
         // TildeTools
         // The last split's bodies by text, unless the emotes have changed since: switched, loaded or blocked
@@ -705,7 +709,7 @@ public partial class InputPreview : Window
             return;
 
         // TildeTools
-        var seconds = (parts.Count - 1) * InputHandler.Plugin.Splitter.IntervalMs / 1000f;
+        var seconds = SplitPostingMs / 1000f;
 
         ImGui.TextDisabled(seconds >= 1f
             ? $"Will be sent as {parts.Count} messages, over about {seconds:0.#} seconds:"

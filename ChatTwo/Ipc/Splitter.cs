@@ -30,12 +30,10 @@ public sealed class Splitter : IDisposable
     private ICallGateSubscriber<string, int, List<string>> SplitLineGate { get; }
     private ICallGateSubscriber<string, int, List<int>> SplitSpansGate { get; }
     private ICallGateSubscriber<string, int, List<int>> SplitSourcesGate { get; }
-    private ICallGateSubscriber<int> IntervalMsGate { get; }
+    private ICallGateSubscriber<string, int, int> PostingMsGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
     private int CachedCap { get; set; } = DefaultByteCap;
-
-    private int CachedInterval { get; set; }
 
     public Splitter()
     {
@@ -46,7 +44,7 @@ public sealed class Splitter : IDisposable
         SplitLineGate = Plugin.Interface.GetIpcSubscriber<string, int, List<string>>("TildeTools.Split.SplitLine");
         SplitSpansGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySpans");
         SplitSourcesGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySources");
-        IntervalMsGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.IntervalMs");
+        PostingMsGate = Plugin.Interface.GetIpcSubscriber<string, int, int>("TildeTools.Split.PostingMs");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Split.Available");
 
         AvailableGate.Subscribe(Refresh);
@@ -56,27 +54,22 @@ public sealed class Splitter : IDisposable
 
     public int InputByteCap => CachedCap;
 
-    public int IntervalMs => CachedInterval;
-
     public void Refresh()
     {
         CachedCap = QueryCap();
-        CachedInterval = QueryInterval();
         Generation++;
     }
 
     // Bumped on every refresh, so a cached split knows the settings behind it changed
     public int Generation { get; private set; }
 
-    private int QueryInterval()
+    // How long the line's parts take to go out, by its channel's pacing
+    // 0 when the splitter's too old to say
+    public int PostingMs(string line)
     {
-        if (!IsAvailable)
-            return 0;
-
         try
         {
-            var interval = IntervalMsGate.InvokeFunc();
-            return interval > 0 ? interval : 0;
+            return PostingMsGate.InvokeFunc(line, DefaultByteCap);
         }
         catch
         {
