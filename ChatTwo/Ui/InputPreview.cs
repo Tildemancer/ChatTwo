@@ -129,6 +129,14 @@ public partial class InputPreview : Window
         if (line == LastSplitInput && generation == LastSplitGeneration)
             return;
 
+        // TildeTools
+        // A keystroke changes a part or two, but every part's Message was parsed again: about 6 ms at 18 parts
+        // Unchanged parts keep theirs
+        var built = new Dictionary<string, Message>();
+        if (SplitParts is { } old)
+            foreach (var (part, message) in old.Zip(SplitMessages!))
+                built.TryAdd(part, message);
+
         LastSplitInput = line;
         LastSplitGeneration = generation;
         SplitParts = null;
@@ -144,7 +152,7 @@ public partial class InputPreview : Window
             return;
 
         SplitParts = parts;
-        SplitMessages = [.. parts.Select(BuildMessage)];
+        SplitMessages = [.. parts.Select(part => built.GetValueOrDefault(part) ?? BuildMessage(part))];
 
         // TildeTools
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
