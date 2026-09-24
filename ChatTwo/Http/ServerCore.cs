@@ -6,7 +6,9 @@ namespace ChatTwo.Http;
 
 public class ServerCore : IAsyncDisposable
 {
-    public static readonly HttpClient HttpClient = new();
+    // TildeTools
+    // Made per start: DisposeAsync disposes it, and a restart in the same load reused the dead one
+    public static HttpClient HttpClient { get; private set; } = null!;
 
     public readonly Plugin Plugin;
     public readonly SendHandler SendHandler;
@@ -14,6 +16,7 @@ public class ServerCore : IAsyncDisposable
 
     public ServerCore(Plugin plugin)
     {
+        HttpClient = new HttpClient();
         Plugin = plugin;
 
         SendHandler = new SendHandler(plugin);
