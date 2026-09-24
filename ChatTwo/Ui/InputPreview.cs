@@ -825,7 +825,8 @@ public partial class InputPreview : Window
                     {
                         var boundary = mouse.X < (from.X + to.X) / 2f ? caret - 1 : caret;
 
-                        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                        // Hovered as well: a click on a window lying over the preview isn't ours
+                        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left) && ImGui.IsItemHovered())
                             DragAnchor = DragHead = boundary;
                         else if (DragAnchor >= 0 && ImGui.IsMouseDown(ImGuiMouseButton.Left))
                             DragHead = boundary;
