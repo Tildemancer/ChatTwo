@@ -144,7 +144,6 @@ public partial class InputPreview : Window
         SplitMessages = [.. parts.Select(BuildMessage)];
 
         // TildeTools
-        // Only the typed slice gets underlined, the rest is our markers
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
 
         // TildeTools
