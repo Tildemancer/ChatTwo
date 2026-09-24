@@ -192,11 +192,21 @@ public sealed class SpellUnderline
 
         ImGui.TextDisabled(PendingWord);
 
-        if (ImGui.Selectable("Add to dictionary"))
-            Plugin.SpellCheck.AddToDictionary(PendingWord);
+        var learn = ImGui.Selectable("Add to dictionary");
+        var ignore = ImGui.Selectable("Ignore for now");
 
-        if (ImGui.Selectable("Ignore for now"))
-            Plugin.SpellCheck.Ignore(PendingWord);
+        // Done with the word
+        // Asking for suggestions now starts a ~100 ms lookup that the next frame's check waits on
+        if (learn || ignore)
+        {
+            if (learn)
+                Plugin.SpellCheck.AddToDictionary(PendingWord);
+            else
+                Plugin.SpellCheck.Ignore(PendingWord);
+
+            PendingWord = string.Empty;
+            return;
+        }
 
         var suggestions = Plugin.SpellCheck.Suggest(PendingWord);
         if (suggestions is null || suggestions.Count > 0)
