@@ -113,7 +113,11 @@ public partial class InputPreview : Window
 
     // TildeTools
     private Dictionary<string, List<Chunk>> ParsedBodies = [];
-    private bool ParsedWithEmotes;
+    private (bool Show, EmoteCache.LoadingState Loaded, int Blocked) ParsedWithEmotes;
+
+    // TildeTools
+    // Resolved from the game, not the text, so a flag or linked item can change under the same body
+    private static readonly string[] LiveParams = ["<item>", "<flag>", "<status>"];
     private bool SplitHasEvaluation;
 
     // TildeTools
@@ -133,7 +137,7 @@ public partial class InputPreview : Window
 
         var text = part[start..end];
         if (!ParsedBodies.TryGetValue(text, out var parsed))
-            ParsedBodies[text] = parsed = kept.GetValueOrDefault(text) ?? BuildMessage(text).Content;
+            ParsedBodies[text] = parsed = (LiveParams.Any(text.Contains) ? null : kept.GetValueOrDefault(text)) ?? BuildMessage(text).Content;
 
         // TildeTools
         // The database-load constructor: FakeMessage's runs CheckMessageContent over the whole part again
@@ -187,11 +191,12 @@ public partial class InputPreview : Window
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
 
         // TildeTools
-        // The last split's bodies by text, unless emotes were switched on or off since
+        // The last split's bodies by text, unless the emotes have changed since: switched, loaded or blocked
         // When the count moves, #m changes every part but not its body
-        var kept = ParsedWithEmotes == Plugin.Config.ShowEmotes ? ParsedBodies : [];
+        var emotes = (Plugin.Config.ShowEmotes, EmoteCache.State, Plugin.Config.BlockedEmotes.Count);
+        var kept = ParsedWithEmotes == emotes ? ParsedBodies : [];
         ParsedBodies = [];
-        ParsedWithEmotes = Plugin.Config.ShowEmotes;
+        ParsedWithEmotes = emotes;
 
         SplitParts = parts;
         SplitMessages = [.. parts.Select((part, i) => BuildPart(part, i < SplitBodies.Count ? SplitBodies[i] : null, kept))];
