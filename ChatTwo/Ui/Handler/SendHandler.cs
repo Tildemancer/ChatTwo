@@ -45,6 +45,7 @@ public class SendHandler
                 ? activeTab.CurrentChannel.TempChannel.Prefix()
                 : activeTab.CurrentChannel.Channel.Prefix();
 
+        // TildeTools
         // Asked every frame, and trimming and joining the same line again is a 36 KB copy each at 18k characters
         if (chatInput == Composed.Input && head == Composed.Head)
             return Composed.Line;

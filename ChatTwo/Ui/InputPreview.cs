@@ -120,11 +120,13 @@ public partial class InputPreview : Window
     // Only the body is tokenized, about 0.3 ms per 500 characters, and the affixes around it stay plain text
     private Message BuildPart(string part, (int Start, int Length)? span, Dictionary<string, List<Chunk>> kept)
     {
+        // TildeTools
         // No usable span, so the whole part is the body
         var (start, end) = span is { } body && body.Start >= 0 && body.Start + body.Length <= part.Length
             ? (body.Start, body.Start + body.Length)
             : (0, part.Length);
 
+        // TildeTools
         // The body takes the space before the suffix, so its words are the ones one parse of the part gives
         if (end < part.Length && part[end] == ' ')
             end++;
@@ -133,6 +135,7 @@ public partial class InputPreview : Window
         if (!ParsedBodies.TryGetValue(text, out var parsed))
             ParsedBodies[text] = parsed = kept.GetValueOrDefault(text) ?? BuildMessage(text).Content;
 
+        // TildeTools
         // The database-load constructor: FakeMessage's runs CheckMessageContent over the whole part again
         List<Chunk> content = [.. Plain(part[..start]), .. parsed, .. Plain(part[end..])];
         return new Message(Guid.NewGuid(), 0, 0, DateTimeOffset.UtcNow, new ChatCode(XivChatType.Say, 0, 0),
@@ -236,6 +239,7 @@ public partial class InputPreview : Window
     // -1 does nothing. The caret lands after the letter, as in a text box
     private int CaretTargetFor(int afterLetter)
     {
+        // TildeTools
         // A split part carries a channel command and markers of ours, so a position in
         // it means nothing to the box until it has been traced back.
         var mapped = SourceIndexOf(SplitIndex, afterLetter - 1);
@@ -249,6 +253,7 @@ public partial class InputPreview : Window
         var typedText = InputHandler.ChatInput;
         var (leading, prefix) = MapBasis();
 
+        // TildeTools
         // Nothing was split, so the drawn text is the box's own, trimmed. Only the
         // leading spaces stand between the two. Most messages come through here.
         if (partIndex < 0)
@@ -282,6 +287,7 @@ public partial class InputPreview : Window
         if (ReferenceEquals(typed, Basis.Typed) && ReferenceEquals(composed, Basis.Composed))
             return (Basis.Leading, Basis.Prefix);
 
+        // TildeTools
         // ComposeLine only ever prepends, and always to the TRIMMED input, so the gap
         // between the two is fixed and the leading spaces have to be added back.
         Basis = (typed, composed, typed.Length - typed.TrimStart().Length, composed.Length - typed.Trim().Length);
@@ -506,6 +512,7 @@ public partial class InputPreview : Window
         {
             if (DragHead >= 0 && DragHead != DragAnchor)
             {
+                // TildeTools
                 // Anchor then head, not low then high: the box's caret goes where the drag ended
                 SelectedRangeStart = DragAnchor;
                 SelectedRangeEnd = DragHead;
@@ -588,6 +595,7 @@ public partial class InputPreview : Window
     // signal, so without this the last word of every part is never checked
     private void SetSpellSource(string text, bool complete = false, (int Start, int Length)? body = null)
     {
+        // TildeTools
         // A word added or ignored changes the answers for text that has not changed.
         var generation = InputHandler.Plugin.SpellCheck.Generation;
         if (generation != MarksGeneration)
@@ -834,6 +842,7 @@ public partial class InputPreview : Window
         {
             var wordSize = ImGui.CalcTextSize(word);
 
+            // TildeTools
             // Trailing spaces ride along, but only the word has to fit, as in any wrapped text
             // The whole first, so the trimmed word is only measured when it might not fit
             var room = ImGui.GetContentRegionAvail().X;
@@ -843,9 +852,11 @@ public partial class InputPreview : Window
             var start = CursorPosition;
             CursorPosition += word.Length;
 
+            // TildeTools
             // ImGui refuses a zero-size item
             var size = wordSize with { X = Math.Max(wordSize.X, 1f) };
 
+            // TildeTools
             // Layout is all that counts in the measuring child, a pixel tall and taking no input
             if (Measuring)
             {
@@ -854,6 +865,7 @@ public partial class InputPreview : Window
                 continue;
             }
 
+            // TildeTools
             // A button, so a press holds the item and a drag over the text can't move the window
             var released = ImGui.InvisibleButton($"##{start}", size);
             var from = ImGui.GetItemRectMin();
@@ -916,6 +928,7 @@ public partial class InputPreview : Window
     {
         var mouseX = ImGui.GetIO().MousePos.X;
 
+        // TildeTools
         // The letter under the pointer: the first whose right edge is past mouseX, else the last
         var k = 0;
         var left = 0f;
@@ -930,11 +943,13 @@ public partial class InputPreview : Window
         var caret = CaretTargetFor(start + k + 1);
         var hovered = ImGui.IsItemHovered();
 
+        // TildeTools
         // Hovered as well: a click on a window lying over the preview isn't ours
         var pressed = hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left);
         if (pressed)
             PressedCaret = caret;
 
+        // TildeTools
         // Drag boundary is whichever half of the letter the pointer's on
         if (caret >= 0)
         {
@@ -946,6 +961,7 @@ public partial class InputPreview : Window
                 DragHead = boundary;
         }
 
+        // TildeTools
         // A press and release on the same letter is a click, as each letter's Selectable had it
         if (released && caret >= 0 && caret == PressedCaret)
         {
@@ -953,6 +969,7 @@ public partial class InputPreview : Window
             InputHandler.FocusedPreview = true;
         }
 
+        // TildeTools
         // Caret on the letter's trailing edge. Nothing over a marker, clicking one does nothing
         if (caret >= 0 && hovered)
         {
@@ -969,6 +986,7 @@ public partial class InputPreview : Window
 
             InputHandler.Spelling.SetPendingWord(misspelled, SourceIndexOf(SplitIndex, first));
 
+            // TildeTools
             // Flagged, not opened: a popup is found by the id stack it was opened under, and this is in a child
             OpenSpellingPopup = true;
         }
