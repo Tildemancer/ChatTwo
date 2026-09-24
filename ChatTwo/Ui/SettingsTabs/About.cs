@@ -40,8 +40,7 @@ public sealed class About : ISettingsTab
         ImGuiHelpers.ScaledDummy(10.0f);
 
         // TildeTools
-        // Named here instead of read off the manifest. Inside another plugin the
-        // manifest is whoever built that plugin, not who wrote this one.
+        // Named, not read off the manifest, which is ours when hosted
         ImGui.TextUnformatted(Language.Options_About_Authors);
         ImGui.SameLine();
         ImGui.TextColored(ImGuiColors.ParsedGold, Hosting.IsHosted ? "Anna and Infi" : Plugin.Interface.Manifest.Author);
@@ -57,9 +56,7 @@ public sealed class About : ISettingsTab
         ImGuiHelpers.ScaledDummy(10.0f);
 
         // TildeTools
-        // No support links on a modified build. Chat 2's maintainers cannot reproduce a
-        // problem one of our changes caused, so pointing people at them burns their
-        // time on our bugs. The credit above stays exactly as it is.
+        // No support links on a modified build: upstream can't reproduce our bugs
         if (Hosting.IsHosted)
         {
             ImGui.TextColored(ImGuiColors.DalamudOrange, Language.Options_About_Modified_Build);
@@ -82,9 +79,7 @@ public sealed class About : ISettingsTab
         ImGuiHelpers.ScaledDummy(10.0f);
 
         // TildeTools
-        // The translation link goes to Chat 2's own project, so a translation of a
-        // string this build has changed would never reach it. Credit for the people
-        // whose work this is goes in that spot instead.
+        // Translations go upstream, which can't use them for strings we changed
         if (Hosting.IsHosted)
         {
             ImGui.TextUnformatted("Chat 2 was written by");

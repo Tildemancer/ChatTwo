@@ -12,10 +12,7 @@ public readonly record struct Misspelling(int Start, int Length)
             : string.Empty;
 }
 
-/// <summary>
-/// Spellchecking from a plugin that provides a dictionary, when one is installed. Does nothing
-/// when none is. Answers are cached per string, because the preview redraws every frame.
-/// </summary>
+// Does nothing when no checker is installed
 public sealed class SpellCheck : IDisposable
 {
     private const int RequiredApiVersion = 1;
@@ -27,20 +24,13 @@ public sealed class SpellCheck : IDisposable
     private ICallGateSubscriber<string, bool> IgnoreGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
-    /// <summary>
-    /// Answers already given, keyed by the text they were about. It holds many rather than
-    /// the last one alone. A split message is checked a part at a time, so a single slot
-    /// means every part evicts the one before it.
-    /// </summary>
+    // Many, not one: a split message is checked a part at a time, so one slot means each part evicts the last
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
 
-    /// <summary>
-    /// Moves on whenever the answers change: a new dictionary, a word added or ignored.
-    /// Anything that remembers results should drop them when this moves.
-    /// </summary>
+    // Moves when answers change (new dictionary, word added or ignored). Drop remembered results when it does
     public int Generation { get; private set; }
 
-    /// <summary>Cleared all at once rather than aged out, since the keys are half-typed words.</summary>
+    // Cleared at once rather than aged out, the keys are half-typed words
     private const int MostToRemember = 64;
 
     public SpellCheck()
@@ -62,7 +52,6 @@ public sealed class SpellCheck : IDisposable
     {
         Refresh();
 
-        // A new dictionary invalidates every cached answer.
         Cached.Clear();
         LastSuggested = string.Empty;
         Generation++;
@@ -82,7 +71,6 @@ public sealed class SpellCheck : IDisposable
 
     private bool ReportedState;
 
-    /// <summary>The misspelled words in a string, or an empty list when no checker is installed.</summary>
     public IReadOnlyList<Misspelling> Check(string text)
     {
         if (!ReportedState && !string.IsNullOrEmpty(text))
@@ -104,7 +92,7 @@ public sealed class SpellCheck : IDisposable
 
         try
         {
-            // Positions arrive flattened as start, length, start, length.
+            // Flattened: start, length, start, length
             var flat = CheckGate.InvokeFunc(text);
             for (var i = 0; i + 1 < flat.Count; i += 2)
                 result.Add(new Misspelling(flat[i], flat[i + 1]));
@@ -122,10 +110,7 @@ public sealed class SpellCheck : IDisposable
     private string LastSuggested = string.Empty;
     private IReadOnlyList<string> LastSuggestions = [];
 
-    /// <summary>
-    /// Words that might have been meant instead, best first. Cached because the open menu asks
-    /// every frame, and a lookup costs tens of milliseconds.
-    /// </summary>
+    // Cached, the open menu asks every frame and a lookup costs tens of ms
     public IReadOnlyList<string> Suggest(string word)
     {
         if (word == LastSuggested)
@@ -144,7 +129,6 @@ public sealed class SpellCheck : IDisposable
         return LastSuggestions;
     }
 
-    /// <summary>Teaches the dictionary a word, so it stops being flagged anywhere.</summary>
     public void AddToDictionary(string word)
     {
         try
@@ -153,7 +137,7 @@ public sealed class SpellCheck : IDisposable
         }
         catch
         {
-            // The word stays flagged.
+            // The word stays flagged
         }
 
         Cached.Clear();
@@ -161,10 +145,7 @@ public sealed class SpellCheck : IDisposable
         Generation++;
     }
 
-    /// <summary>
-    /// Leaves a word alone until the game restarts, without learning it. The filtering happens
-    /// in the checker, so every text box agrees.
-    /// </summary>
+    // Until restart, without learning it. Filtered in the checker, so every box agrees
     public void Ignore(string word)
     {
         try
@@ -173,7 +154,7 @@ public sealed class SpellCheck : IDisposable
         }
         catch
         {
-            // The word stays flagged.
+            // The word stays flagged
         }
 
         Cached.Clear();

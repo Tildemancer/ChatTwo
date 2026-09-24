@@ -5,32 +5,24 @@ using Dalamud.Plugin.Ipc.Exceptions;
 
 namespace ChatTwo.Ipc;
 
-/// <summary>What the splitter did with a line we offered it.</summary>
 public enum SplitTake
 {
-    /// <summary>Nothing. Send it ourselves, exactly as we would have.</summary>
+    // Send it ourselves
     NotTaken,
 
-    /// <summary>Broken up and on its way. Send nothing, and the box can be cleared.</summary>
+    // Send nothing, the box can be cleared
     Queued,
 
-    /// <summary>
-    /// Turned down, with the reason already in the log. Send nothing, and leave the
-    /// text alone. It is the only copy of what was typed.
-    /// </summary>
+    // Send nothing and keep the text, it's the only copy
     Refused,
 }
 
-/// <summary>
-/// Talks to a plugin that splits over-length messages, when one is installed.
-/// With none installed, Chat 2 carries on as before.
-/// </summary>
+// With none installed Chat 2 carries on as before
 public sealed class Splitter : IDisposable
 {
-    /// <summary>Bytes, not characters. This is the limit the game itself enforces.</summary>
+    // Bytes. The game's own limit
     public const int DefaultByteCap = 500;
 
-    /// <summary>The API version this was written against.</summary>
     private const int RequiredApiVersion = 1;
 
     private ICallGateSubscriber<int> ApiVersionGate { get; }
@@ -43,10 +35,10 @@ public sealed class Splitter : IDisposable
     private ICallGateSubscriber<int> IntervalMsGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
-    /// <summary>Cached, because the input box gets drawn every frame.</summary>
+    // Cached, the input box draws every frame
     private int CachedCap { get; set; } = DefaultByteCap;
 
-    /// <summary>Cached alongside the cap, and zero while no splitter is answering.</summary>
+    // Zero while nothing answers
     private int CachedInterval { get; set; }
 
     public Splitter()
@@ -61,7 +53,7 @@ public sealed class Splitter : IDisposable
         IntervalMsGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.IntervalMs");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Split.Available");
 
-        // Fires when the splitter loads after Chat 2.
+        // Fires when the splitter loads after Chat 2
         AvailableGate.Subscribe(Refresh);
 
         Refresh();
@@ -69,14 +61,10 @@ public sealed class Splitter : IDisposable
 
     public int InputByteCap => CachedCap;
 
-    /// <summary>
-    /// Milliseconds the splitter leaves between parts, or zero when nothing is
-    /// answering. The first part goes out at once, so a message of n parts takes
-    /// n-1 of these.
-    /// </summary>
+    // The first part goes at once, so n parts take n-1 of these
     public int IntervalMs => CachedInterval;
 
-    /// <summary>Re-reads the limit. Call when the plugin list changes.</summary>
+    // Call when the plugin list changes
     public void Refresh()
     {
         CachedCap = QueryCap();
@@ -112,29 +100,21 @@ public sealed class Splitter : IDisposable
             IsAvailable = true;
             var cap = InputByteCapGate.InvokeFunc();
 
-            // Never below the game's own limit, whatever the splitter reports.
+            // Never below the game's own limit
             return cap < DefaultByteCap ? DefaultByteCap : cap;
         }
         catch
         {
-            // No splitter, or an incompatible version.
+            // No splitter, or an incompatible version
             IsAvailable = false;
             return DefaultByteCap;
         }
     }
 
-    /// <summary>
-    /// True when a compatible splitter is answering. Recorded rather than worked out
-    /// from the cap: a splitter reporting exactly the game's own limit would look like
-    /// no splitter at all.
-    /// </summary>
+    // Recorded, not inferred from the cap: a splitter reporting exactly 500 would look absent
     public bool IsAvailable { get; private set; }
 
-    /// <summary>
-    /// Where the typed text sits inside each part, as a start and a length per part.
-    /// Everything outside is the splitter's own: the channel command, continuation
-    /// markers, OOC tags. Empty when the splitter is too old to say.
-    /// </summary>
+    // Outside the span is the splitter's own. Empty when it's too old to say
     public List<(int Start, int Length)> BodySpans(string line)
     {
         try
@@ -151,17 +131,12 @@ public sealed class Splitter : IDisposable
         }
         catch
         {
-            // An older splitter has no such gate. Mark everything, as before, rather
-            // than nothing.
+            // An older splitter lacks the gate. Mark everything, as before
             return [];
         }
     }
 
-    /// <summary>
-    /// Where each part's body came from in the line we handed over, one index per part.
-    /// Empty when the splitter cannot map it, or is too old to be asked. A correction
-    /// then falls back to the first word spelled the same.
-    /// </summary>
+    // Empty when it can't map or is too old. Corrections then fall back to first-match
     public List<int> BodySources(string line)
     {
         try
@@ -174,7 +149,7 @@ public sealed class Splitter : IDisposable
         }
     }
 
-    /// <summary>Preview of how a chat line would divide up. Null if the splitter declined.</summary>
+    // Null if declined
     public List<string>? Split(string line)
     {
         try
@@ -188,7 +163,7 @@ public sealed class Splitter : IDisposable
         }
     }
 
-    /// <summary>Offers a chat line to the splitter. True means the splitter sends it, not us.</summary>
+    // True means the splitter sends it
     public bool TrySend(string line)
     {
         try
@@ -201,14 +176,8 @@ public sealed class Splitter : IDisposable
         }
     }
 
-    /// <summary>
-    /// Offers a chat line and gets back what happened to it.
-    ///
-    /// The yes-or-no version above cannot tell "not mine, you send it" from "refused",
-    /// and we got the second one wrong: sent the oversized line ourselves, the game
-    /// binned it, and the box was cleared anyway. An older splitter has no such gate,
-    /// so a no from it still means send it yourself.
-    /// </summary>
+    // Yes/no can't tell "not mine" from "refused", and we sent a refused line ourselves.
+    // An older splitter's no still means send it
     public SplitTake Offer(string line)
     {
         try
@@ -224,13 +193,12 @@ public sealed class Splitter : IDisposable
         }
         catch (IpcNotReadyError)
         {
-            // A splitter from before SendLineStatus. The yes/no gate is all it has.
+            // A splitter from before SendLineStatus, yes/no is all it has
             return TrySend(line) ? SplitTake.Queued : SplitTake.NotTaken;
         }
         catch (Exception ex)
         {
-            // The gate is there and threw. It may have queued the line first, so offering
-            // it again through SendLine could send it twice. Keep it in the box instead.
+            // The gate's there and threw. It may have queued first, so SendLine could send twice. Keep it in the box
             Plugin.Log.Error(ex, "The splitter failed on a line; kept it in the box.");
             Plugin.ChatGui.PrintError("[Chat 2] The splitter hit an error, so that message was kept in the box.");
             return SplitTake.Refused;

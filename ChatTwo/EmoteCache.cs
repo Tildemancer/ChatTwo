@@ -90,9 +90,7 @@ public static class EmoteCache
             emote.InnerDispose();
 
         // TildeTools
-        // All static, so it outlives the plugin instance. Without a reset here, a
-        // second startup in the same game session finds State already Done and WILL
-        // hand out the textures just disposed.
+        // Static, so it outlives the instance. Without a reset a second startup hands out disposed textures
         EmoteImages.Clear();
         SortedCodeArray = [];
         State = LoadingState.Unloaded;

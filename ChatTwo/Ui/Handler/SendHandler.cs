@@ -29,13 +29,7 @@ public class SendHandler
     }
 
     // TildeTools
-    /// <summary>
-    /// The line <see cref="SendChatBox"/> builds out of this input: the channel prefix
-    /// or the tell target, then the text.
-    ///
-    /// Here so the preview and the real send agree on what is about to go out. Mirrors
-    /// the composition down in SendChatBox. Change that and change this with it.
-    /// </summary>
+    // Mirrors SendChatBox so the preview agrees with the send. Change one, change both
     public static string ComposeLine(Tab activeTab, string chatInput)
     {
         var trimmed = chatInput.Trim();
@@ -65,9 +59,8 @@ public class SendHandler
             InputBacklogIdx = -1;
 
             // TildeTools
-            // Neither of the next two can be split: one goes out as payload bytes, the other
-            // through the game's tell command rather than as a line. Over the cap, the game
-            // drops them without a word, so they stay in the box instead.
+            // Neither can be split: payload bytes, and the game's tell command. Over the cap the game
+            // drops them silently, so they stay in the box
             if (Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap
                 && (tellSpecial || StartsWithTranslationCommand(trimmed)))
             {
@@ -123,9 +116,7 @@ public class SendHandler
                             }
 
                             // TildeTools
-                            // Refused. Sent ourselves, the game drops it for length
-                            // without a word and the tell is gone with whatever was
-                            // typed. Leave it in the box to fix.
+                            // Refused: sent anyway it's dropped for length and the text's gone, so keep it in the box
                             if (tellTake == SplitTake.Refused)
                                 return;
                         }
@@ -165,17 +156,13 @@ public class SendHandler
             }
 
             // TildeTools
-            // Offered before auto-translate becomes payload bytes, so the splitter only
-            // ever sees plain text it can safely cut. Nothing under the cap is offered,
-            // so an ordinary send costs nothing.
+            // Before auto-translate becomes bytes, so the splitter only sees plain text. Under the cap isn't offered
             var take = Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap
                 ? Plugin.Splitter.Offer(trimmed)
                 : SplitTake.NotTaken;
 
             // TildeTools
-            // Refused, so it must NOT go out as it stands: the game bins anything over
-            // length silently. Returning here keeps the text in the box, since the
-            // clear at the end of this method runs whatever happened.
+            // Must not go out as is. Returning keeps the text, the clear below runs regardless
             if (take == SplitTake.Refused)
                 return;
 
@@ -193,7 +180,7 @@ public class SendHandler
     }
 
     // TildeTools
-    // On a copy: StartsWithCommand rewrites the bytes it is given.
+    // On a copy, StartsWithCommand rewrites what it's given
     private static bool StartsWithTranslationCommand(string trimmed)
     {
         var bytes = Encoding.UTF8.GetBytes(trimmed);

@@ -6,32 +6,25 @@ using Newtonsoft.Json.Serialization;
 
 namespace ChatTwo;
 
-/// <summary>
-/// Where Chat 2 keeps its settings and data. When hosted inside another plugin this
-/// points at Chat 2's own folder rather than the host's config directory.
-/// </summary>
+// Hosted, this points at Chat 2's own folder, not the host's config directory
 public static class Hosting
 {
     private static DirectoryInfo? Overridden;
 
     public static bool IsHosted => Overridden != null;
 
-    /// <summary>
-    /// Redirects settings and data to a specific folder. Call this BEFORE constructing
-    /// <see cref="Plugin"/>.
-    /// </summary>
+    // Before constructing Plugin
     public static void HostIn(DirectoryInfo directory)
     {
         Overridden = directory;
         directory.Create();
     }
 
-    /// <summary>The folder holding the database, emote cache and downloaded font.</summary>
     public static DirectoryInfo DataDirectory => Overridden ?? Plugin.Interface.ConfigDirectory;
 
     private static string ConfigPath => Path.Join(DataDirectory.Parent?.FullName ?? DataDirectory.FullName, "ChatTwo.json");
 
-    /// <summary>Matches how Dalamud writes plugin settings, so stored objects carry a "$type".</summary>
+    // Matches how Dalamud writes settings, so stored objects carry "$type"
     private static readonly JsonSerializerSettings SerializerSettings = new()
     {
         TypeNameHandling = TypeNameHandling.Objects,
@@ -39,10 +32,7 @@ public static class Hosting
         SerializationBinder = new LocalAssemblyBinder(),
     };
 
-    /// <summary>
-    /// Resolves types named in the settings file against the running copy of Chat 2.
-    /// Without this the serializer loads a second copy of the assembly. Yikes.
-    /// </summary>
+    // Resolves against the running Chat 2, or the serializer loads a second copy of the assembly. Yikes
     private sealed class LocalAssemblyBinder : DefaultSerializationBinder
     {
         private static readonly Assembly Ours = typeof(Configuration).Assembly;
@@ -50,8 +40,7 @@ public static class Hosting
 
         public override Type BindToType(string? assemblyName, string typeName)
         {
-            // Resolve the whole name rather than looking for our assembly first, since a
-            // runtime generic can have our types as its arguments.
+            // Whole name, not ours first: a runtime generic can take our types as arguments
             var qualified = assemblyName == null ? typeName : $"{typeName}, {assemblyName}";
 
             var resolved = Type.GetType(qualified, ResolveAssembly, ResolveType, throwOnError: false);
@@ -72,10 +61,10 @@ public static class Hosting
                 : assembly.GetType(name, throwOnError: false, ignoreCase);
     }
 
-    /// <summary>Settings existed but could not be read. Saving is refused so defaults NEVER overwrite them.</summary>
+    // Settings existed but couldn't be read, so saving is refused and defaults never overwrite them
     private static bool LoadFailed;
 
-    /// <summary>Reads the configuration. When hosted, asking Dalamud for it hands back the host plugin's config object.</summary>
+    // Hosted, asking Dalamud hands back the host's config object
     public static Configuration LoadConfig()
     {
         if (!IsHosted)
@@ -127,7 +116,7 @@ public static class Hosting
             var path = ConfigPath;
             var json = JsonConvert.SerializeObject(config, Formatting.Indented, SerializerSettings);
 
-            // Write beside the target and move it into place, so a failed write leaves no half-file.
+            // Written beside and moved in, so a failed write leaves no half-file
             var temporary = path + ".tmp";
             File.WriteAllText(temporary, json);
 

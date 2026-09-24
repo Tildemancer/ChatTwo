@@ -62,10 +62,6 @@ public class InputHandler
     }
 
     // TildeTools
-    /// <summary>
-    /// The line the current input would go out as, for the preview. Set here because
-    /// this is where the active tab is known.
-    /// </summary>
     public string ComposedLine { get; private set; } = string.Empty;
 
     public void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial)
@@ -112,12 +108,11 @@ public class InputHandler
                 var flags = InputFlags | (!isChatEnabled ? ImGuiInputTextFlags.ReadOnly : ImGuiInputTextFlags.None);
                 ImGui.SetNextItemWidth(inputWidth);
                 // TildeTools
-                // 500 is the game's own limit. A splitter can raise it, and cutting the
-                // result up is then the splitter's job. With none loaded it stays 500.
+                // 500 unless a splitter raises it, then cutting it up is the splitter's job
                 ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, Plugin.Splitter.InputByteCap, flags, Callback);
 
                 // TildeTools
-                // Drawn over the input, because it cannot colour its own contents.
+                // Drawn over the input, which can't colour its own contents
                 Spelling.DrawForInput(ref ChatInput);
             }
             var inputActive = ImGui.IsItemActive();
@@ -187,8 +182,7 @@ public class InputHandler
                     using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, normalColor);
 
                     // TildeTools
-                    // Above the rest, since a right click on a marked word is
-                    // almost certainly about that word.
+                    // First: a right click on a marked word is almost certainly about that word
                     Spelling.DrawContextEntries(ref ChatInput);
 
                     if (ImGui.Selectable(Language.ChatLog_HideChat))
@@ -199,11 +193,7 @@ public class InputHandler
     }
 
     // TildeTools
-    /// <summary>
-    /// A character position, as the preview counts them, turned into a byte position,
-    /// which is what the input box works in. Identical for plain English. An accent in
-    /// a name is where the two part company.
-    /// </summary>
+    // The box works in bytes, the preview in chars. They part ways at the first accent
     private static int ByteIndex(string text, int position) =>
         Encoding.UTF8.GetByteCount(text.AsSpan(0, Math.Clamp(position, 0, text.Length)));
 
@@ -227,9 +217,7 @@ public class InputHandler
             data.CursorPos = ByteIndex(ChatInput, Plugin.InputPreview.SelectedCursorPos);
 
             // TildeTools
-            // Collapse whatever was selected onto the new position, the way clicking in
-            // a text field does. The cursor and the selection are separate state here,
-            // so moving one and not the other left the old highlight behind.
+            // Collapse the selection onto the cursor like a click does, or the old highlight stays
             data.SelectionStart = data.CursorPos;
             data.SelectionEnd = data.CursorPos;
 
@@ -237,7 +225,6 @@ public class InputHandler
         }
 
         // TildeTools
-        // A range dragged out in the preview.
         if (Plugin.InputPreview.SelectedRangeStart != -1)
         {
             data.SelectionStart = ByteIndex(ChatInput, Plugin.InputPreview.SelectedRangeStart);
