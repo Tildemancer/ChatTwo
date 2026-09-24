@@ -12,7 +12,6 @@ public readonly record struct Misspelling(int Start, int Length)
             : string.Empty;
 }
 
-// Does nothing when no checker is installed
 public sealed class SpellCheck : IDisposable
 {
     private const int RequiredApiVersion = 1;
@@ -137,7 +136,6 @@ public sealed class SpellCheck : IDisposable
         }
         catch
         {
-            // The word stays flagged
         }
 
         Cached.Clear();
@@ -154,7 +152,6 @@ public sealed class SpellCheck : IDisposable
         }
         catch
         {
-            // The word stays flagged
         }
 
         Cached.Clear();

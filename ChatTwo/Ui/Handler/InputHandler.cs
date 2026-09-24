@@ -182,7 +182,6 @@ public class InputHandler
                     using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, normalColor);
 
                     // TildeTools
-                    // First: a right click on a marked word is almost certainly about that word
                     Spelling.DrawContextEntries(ref ChatInput);
 
                     if (ImGui.Selectable(Language.ChatLog_HideChat))

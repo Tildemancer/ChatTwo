@@ -95,7 +95,6 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    // Like a chat line: payloads, icons and all
     private static Message BuildMessage(string text)
     {
         var bytes = Encoding.UTF8.GetBytes(text);
@@ -117,14 +116,12 @@ public partial class InputPreview : Window
     private string LastSplitInput = string.Empty;
 
     // TildeTools
-    // Empty when the splitter can't say
     private List<(int Start, int Length)> SplitBodies = [];
 
     // TildeTools
     private bool Measuring;
 
     // TildeTools
-    // Only on change, it's a cross-plugin call
     private void UpdateSplitParts()
     {
         var line = InputHandler.ComposedLine;
@@ -140,7 +137,6 @@ public partial class InputPreview : Window
             return;
 
         // TildeTools
-        // One part means nothing's split
         var parts = InputHandler.Plugin.Splitter.Split(line);
         if (parts is not { Count: > 1 })
             return;
@@ -153,7 +149,6 @@ public partial class InputPreview : Window
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
 
         // TildeTools
-        // So a right-click corrects that word, not the first one spelled like it
         SplitSources = InputHandler.Plugin.Splitter.BodySources(line);
 
     }
@@ -162,7 +157,6 @@ public partial class InputPreview : Window
     private List<int> SplitSources = [];
 
     // TildeTools
-    // -1 for the box's own text
     private int SplitIndex = -1;
 
     // TildeTools
@@ -173,7 +167,6 @@ public partial class InputPreview : Window
     private int DragHead = -1;
 
     // TildeTools
-    // Handed over once the drag is let go
     public int SelectedRangeStart = -1;
     public int SelectedRangeEnd = -1;
 
@@ -269,7 +262,6 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    // Beside the chat window when it won't fit above or below, right preferred
     private Vector2 KeepOnScreen(Vector2 wanted, Vector2 windowPos, float windowWidth, float previewWidth)
     {
         var screen = ImGui.GetIO().DisplaySize;
@@ -284,7 +276,6 @@ public partial class InputPreview : Window
         var x = fitsRight || !fitsLeft ? right : windowPos.X - previewWidth;
 
         // TildeTools
-        // Level with the chat window, sliding up only as far as it must
         var top = Math.Clamp(windowPos.Y, 0, Math.Max(0, screen.Y - PreviewHeight));
 
         return new Vector2(Math.Clamp(x, 0, Math.Max(0, screen.X - previewWidth)), top);
@@ -297,13 +288,11 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    // The chat window's own width
     private float ColumnWidth = 200f;
 
     public float PreviewWidth;
 
     // TildeTools
-    // Top to bottom, then left to right
     private readonly List<List<int>> Columns = [];
 
     // TildeTools
@@ -356,7 +345,6 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    // Spills into a new column rather than off the bottom of the screen
     private void PackColumns(float padding)
     {
         var available = Math.Max(100f, ImGui.GetIO().DisplaySize.Y - padding);
@@ -379,7 +367,6 @@ public partial class InputPreview : Window
         });
 
         // TildeTools
-        // Nothing measured but parts to show: one full-height column
         if (heights.Count < SplitMessages!.Count)
         {
             Columns.Add([.. Enumerable.Range(0, SplitMessages.Count)]);
@@ -441,7 +428,6 @@ public partial class InputPreview : Window
         }
 
         // TildeTools
-        // Back to the top so the real draw covers the sliver
         ImGui.SetCursorPos(restore);
         return height;
     }
@@ -508,7 +494,6 @@ public partial class InputPreview : Window
             using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
 
             // TildeTools
-            // Only above the first column, it names the whole preview
             if (c == 0)
                 DrawSplitHeader();
 
@@ -520,7 +505,6 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    // The trimmed input, or the split part being drawn
     private string SpellSource = string.Empty;
 
     // TildeTools
@@ -534,7 +518,6 @@ public partial class InputPreview : Window
     private readonly Dictionary<(string Text, bool Complete, (int Start, int Length)? Body), string?[]> MarksFor = [];
 
     // TildeTools
-    // One per split part, plus the whole line
     private const int MostMarksToRemember = 64;
 
     // TildeTools
@@ -640,14 +623,12 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    // Replaces the whole-message preview rather than sitting above it
     private void DrawSplitHeader()
     {
         if (SplitParts is not { } parts)
             return;
 
         // TildeTools
-        // Only the gaps: the first part goes the moment you press enter
         var seconds = (parts.Count - 1) * InputHandler.Plugin.Splitter.IntervalMs / 1000f;
 
         ImGui.TextDisabled(seconds >= 1f
@@ -680,7 +661,6 @@ public partial class InputPreview : Window
         try
         {
             // TildeTools
-            // So a right-click here traces back to the box
             SplitIndex = index;
 
             // TildeTools
@@ -761,7 +741,6 @@ public partial class InputPreview : Window
                 ImGui.NewLine();
 
             // TildeTools
-            // Dummy while loading, the name on failure
             var image = EmoteCache.GetEmote(emotePayload.Code);
             if (image is { Failed: false })
             {
@@ -821,7 +800,6 @@ public partial class InputPreview : Window
                 CursorPosition++;
 
                 // TildeTools
-                // Once, before drawing, so everything below agrees
                 var caret = CaretTargetFor(CursorPosition);
 
                 var clicked = ImGui.Selectable(
@@ -876,7 +854,6 @@ public partial class InputPreview : Window
                     if (!Measuring && ImGui.IsItemClicked(ImGuiMouseButton.Right))
                     {
                         // TildeTools
-                        // Back to the word's start, the correction needs it
                         var start = CursorPosition - 1;
                         while (start > 0 && ReferenceEquals(SpellMarks[start - 1], misspelled))
                             start--;

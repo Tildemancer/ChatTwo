@@ -6,7 +6,6 @@ using Newtonsoft.Json.Serialization;
 
 namespace ChatTwo;
 
-// Hosted, this points at Chat 2's own folder, not the host's config directory
 public static class Hosting
 {
     private static DirectoryInfo? Overridden;
@@ -116,7 +115,6 @@ public static class Hosting
             var path = ConfigPath;
             var json = JsonConvert.SerializeObject(config, Formatting.Indented, SerializerSettings);
 
-            // Written beside and moved in, so a failed write leaves no half-file
             var temporary = path + ".tmp";
             File.WriteAllText(temporary, json);
 

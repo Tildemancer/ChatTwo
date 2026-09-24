@@ -17,10 +17,8 @@ public enum SplitTake
     Refused,
 }
 
-// With none installed Chat 2 carries on as before
 public sealed class Splitter : IDisposable
 {
-    // Bytes. The game's own limit
     public const int DefaultByteCap = 500;
 
     private const int RequiredApiVersion = 1;
@@ -35,10 +33,8 @@ public sealed class Splitter : IDisposable
     private ICallGateSubscriber<int> IntervalMsGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
-    // Cached, the input box draws every frame
     private int CachedCap { get; set; } = DefaultByteCap;
 
-    // Zero while nothing answers
     private int CachedInterval { get; set; }
 
     public Splitter()
@@ -61,10 +57,8 @@ public sealed class Splitter : IDisposable
 
     public int InputByteCap => CachedCap;
 
-    // The first part goes at once, so n parts take n-1 of these
     public int IntervalMs => CachedInterval;
 
-    // Call when the plugin list changes
     public void Refresh()
     {
         CachedCap = QueryCap();
@@ -100,12 +94,10 @@ public sealed class Splitter : IDisposable
             IsAvailable = true;
             var cap = InputByteCapGate.InvokeFunc();
 
-            // Never below the game's own limit
             return cap < DefaultByteCap ? DefaultByteCap : cap;
         }
         catch
         {
-            // No splitter, or an incompatible version
             IsAvailable = false;
             return DefaultByteCap;
         }
@@ -136,7 +128,6 @@ public sealed class Splitter : IDisposable
         }
     }
 
-    // Empty when it can't map or is too old. Corrections then fall back to first-match
     public List<int> BodySources(string line)
     {
         try
@@ -149,7 +140,6 @@ public sealed class Splitter : IDisposable
         }
     }
 
-    // Null if declined
     public List<string>? Split(string line)
     {
         try
@@ -163,7 +153,6 @@ public sealed class Splitter : IDisposable
         }
     }
 
-    // True means the splitter sends it
     public bool TrySend(string line)
     {
         try

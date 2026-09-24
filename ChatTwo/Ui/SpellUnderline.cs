@@ -23,7 +23,6 @@ public sealed class SpellUnderline
 
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
 
-    // Measured once per misspellings list and font size, not per frame
     private (IReadOnlyList<Misspelling> For, float Font, List<(float Left, float Width)> At) Measured = ([], 0f, []);
 
     // Off the input's own state, not guessed from the caret, which only pins the scroll at the
@@ -48,7 +47,6 @@ public sealed class SpellUnderline
             Thickness * ImGuiHelpers.GlobalScale);
     }
 
-    // (-1, -1) for nothing. The preview mirrors it
     public (int Start, int End) InputSelection { get; private set; } = (-1, -1);
 
     // Must run while the input is current, before the early exits: text with no misspellings still has a selection
@@ -164,7 +162,6 @@ public sealed class SpellUnderline
         PendingAt = at;
     }
 
-    // Adds to the caller's open context menu. Nothing unless the pointer was last over a marked word
     public bool DrawContextEntries(ref string text)
     {
         if (PendingWord.Length == 0)
@@ -192,14 +189,12 @@ public sealed class SpellUnderline
         return true;
     }
 
-    // The occurrence at at, else the first whole-word one. Same shape as the native chat box
     public static string ReplaceWord(string text, string word, string replacement, int at)
     {
         if (at >= 0 && at + word.Length <= text.Length &&
             string.CompareOrdinal(text, at, word, 0, word.Length) == 0)
             return text[..at] + replacement + text[(at + word.Length)..];
 
-        // Unknown, or the text moved between click and pick: first-match rather than rewriting blind
         return ReplaceWord(text, word, replacement);
     }
 
