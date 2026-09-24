@@ -190,9 +190,6 @@ public partial class InputPreview : Window
     // -1 does nothing. The caret lands after the letter, as in a text box
     private int CaretTargetFor(int afterLetter)
     {
-        if (MapsToInput)
-            return afterLetter;
-
         // A split part carries a channel command and markers of ours, so a position in
         // it means nothing to the box until it has been traced back.
         var mapped = SourceIndexOf(SplitIndex, afterLetter - 1);
@@ -591,10 +588,6 @@ public partial class InputPreview : Window
          (char.IsPunctuation(typed[^1]) && typed[^1] is not ('\'' or '-')));
 
     // TildeTools
-    // False while a split part is drawn, clicks then go through SourceIndexOf
-    private bool MapsToInput = true;
-
-    // TildeTools
     private string? MisspelledWordAt(int position) =>
         position >= 0 && position < SpellMarks.Length ? SpellMarks[position] : null;
 
@@ -654,7 +647,6 @@ public partial class InputPreview : Window
         var previousSource = SpellSource;
         var previousMarks = SpellMarks;
         var previousSplitIndex = SplitIndex;
-        MapsToInput = false;
 
         try
         {
@@ -680,7 +672,6 @@ public partial class InputPreview : Window
             SpellSource = previousSource;
             SpellMarks = previousMarks;
             SplitIndex = previousSplitIndex;
-            MapsToInput = true;
         }
     }
 
