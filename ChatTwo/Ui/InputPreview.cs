@@ -95,8 +95,7 @@ public partial class InputPreview : Window
         UpdateSplitParts();
 
         // TildeTools
-        HasEvaluation = !Plugin.Config.OnlyPreviewIf || PreviewMessage.Content.Count > 1 ||
-                        SplitMessages?.Exists(part => part.Content.Count > 1) == true;
+        HasEvaluation = !Plugin.Config.OnlyPreviewIf || PreviewMessage.Content.Count > 1 || SplitHasEvaluation;
     }
 
     // TildeTools
@@ -115,6 +114,7 @@ public partial class InputPreview : Window
     // TildeTools
     private Dictionary<string, List<Chunk>> ParsedBodies = [];
     private bool ParsedWithEmotes;
+    private bool SplitHasEvaluation;
 
     // TildeTools
     // Only the body is tokenized, about 0.3 ms per 500 characters, and the affixes around it stay plain text
@@ -172,6 +172,7 @@ public partial class InputPreview : Window
         LastSplitGeneration = generation;
         SplitParts = null;
         SplitMessages = null;
+        SplitHasEvaluation = false;
         SplitBodies = [];
 
         if (!InputHandler.Plugin.Splitter.IsAvailable || line.Length == 0)
@@ -194,6 +195,10 @@ public partial class InputPreview : Window
 
         SplitParts = parts;
         SplitMessages = [.. parts.Select((part, i) => BuildPart(part, i < SplitBodies.Count ? SplitBodies[i] : null, kept))];
+
+        // TildeTools
+        // The bodies, not the parts: a part's affixes are chunks of their own, so every part had more than one
+        SplitHasEvaluation = ParsedBodies.Values.Any(body => body.Count > 1);
 
         // TildeTools
         SplitSources = InputHandler.Plugin.Splitter.BodySources(line);
