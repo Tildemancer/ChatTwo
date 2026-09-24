@@ -190,6 +190,7 @@ public sealed class SpellUnderline
         if (PendingWord.Length == 0)
             return;
 
+        KeepOnScreen();
         ImGui.TextDisabled(PendingWord);
 
         var learn = ImGui.Selectable("Add to dictionary");
@@ -220,6 +221,17 @@ public sealed class SpellUnderline
                     text = ReplaceWord(text, PendingWord, suggestion, PendingAt);
 
         ImGui.Separator();
+    }
+
+    // Suggestions come in after it opens, and ImGui only fits a popup to the screen on the frame it opens
+    private static void KeepOnScreen()
+    {
+        var screen = ImGui.GetWindowViewport();
+        var at = ImGui.GetWindowPos();
+        var fit = Vector2.Clamp(at, screen.WorkPos, Vector2.Max(screen.WorkPos, screen.WorkPos + screen.WorkSize - ImGui.GetWindowSize()));
+
+        if (fit != at)
+            ImGui.SetWindowPos(fit);
     }
 
     public static string ReplaceWord(string text, string word, string replacement, int at)
