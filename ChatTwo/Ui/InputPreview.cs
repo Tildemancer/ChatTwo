@@ -118,11 +118,11 @@ public partial class InputPreview : Window
     // TildeTools
     private Dictionary<string, List<Chunk>> ParsedBodies = [];
     private (bool Show, EmoteCache.LoadingState Loaded, int Blocked) ParsedWithEmotes;
+    private bool SplitHasEvaluation;
 
     // TildeTools
     // Resolved from the game, not the text, so a flag or linked item can change under the same body
     private static readonly string[] LiveParams = ["<item>", "<flag>", "<status>"];
-    private bool SplitHasEvaluation;
 
     // TildeTools
     // Only the body is tokenized, about 0.3 ms per 500 characters, and the affixes around it stay plain text
@@ -599,7 +599,8 @@ public partial class InputPreview : Window
     private readonly Dictionary<(string Text, bool Complete, (int Start, int Length)? Body), string?[]> MarksFor = [];
 
     // TildeTools
-    private const int MostMarksToRemember = 64;
+    // Every part of a 32000-byte message, about 67, with room over
+    private const int MostMarksToRemember = 256;
 
     // TildeTools
     private int MarksGeneration;

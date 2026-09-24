@@ -29,7 +29,8 @@ public sealed class SpellCheck : IDisposable
     // Moves when answers change (new dictionary, word added or ignored). Drop remembered results when it does
     public int Generation { get; private set; }
 
-    private const int MostToRemember = 64;
+    // Every part of a 32000-byte message, about 67, with room over
+    private const int MostToRemember = 256;
 
     public SpellCheck()
     {
