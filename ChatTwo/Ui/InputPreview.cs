@@ -443,8 +443,19 @@ public partial class InputPreview : Window
         return height;
     }
 
+    // TildeTools
+    private int LastDrawFrame = -1;
+
     public void DrawPreview()
     {
+        // TildeTools
+        // A drag the preview wasn't drawn for, hidden in combat say, is dropped rather than committed on return
+        var frame = ImGui.GetFrameCount();
+        if (LastDrawFrame < frame - 1)
+            DragAnchor = DragHead = -1;
+
+        LastDrawFrame = frame;
+
         // TildeTools
         // Finished here, not in the letter loop: the button can come up anywhere. Handed over on
         // release, per frame it drags focus into the box
