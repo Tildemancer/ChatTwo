@@ -814,7 +814,10 @@ public partial class InputPreview : Window
         foreach (var word in WordsOf(text.Content))
         {
             var wordSize = ImGui.CalcTextSize(word);
-            if (ImGui.GetContentRegionAvail().X < wordSize.X)
+
+            // Trailing spaces ride along, but only the word has to fit, as in any wrapped text
+            var fitting = char.IsWhiteSpace(word[^1]) ? ImGui.CalcTextSize($"{word.AsSpan().TrimEnd()}").X : wordSize.X;
+            if (ImGui.GetContentRegionAvail().X < fitting)
                 ImGui.NewLine();
 
             var start = CursorPosition;
@@ -956,8 +959,11 @@ public partial class InputPreview : Window
     private static readonly ConditionalWeakTable<string, string[]> Words = new();
 
     private static string[] WordsOf(string content) =>
-        Words.GetValue(content, c => WhitespaceRegex().Split(c).Where(s => s != string.Empty).ToArray());
+        Words.GetValue(content, c => WordRegex().Matches(c).Select(m => m.Value).ToArray());
 
-    [GeneratedRegex(@"(\s)")]
-    private static partial Regex WhitespaceRegex();
+    // TildeTools
+    // A word and the spaces after it are one item, half as many as a word and a space each
+    // Only leading spaces stand alone
+    [GeneratedRegex(@"\S+\s*|\s+")]
+    private static partial Regex WordRegex();
 }
