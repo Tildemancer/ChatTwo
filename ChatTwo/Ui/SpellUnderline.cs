@@ -81,7 +81,7 @@ public sealed class SpellUnderline
 
         var hovered = ImGui.IsItemHovered();
         var rightClicked = ImGui.IsMouseClicked(ImGuiMouseButton.Right);
-        var clicked = Underline(text, misspellings, hovered && rightClicked);
+        var clicked = UnderlineInput(text, misspellings, hovered && rightClicked);
 
         // Only for a click in this box. The preview draws first, so a click latched there got wiped here
         if (rightClicked && hovered)
@@ -89,7 +89,7 @@ public sealed class SpellUnderline
     }
 
     // The misspelling under the pointer when checkClick, else ("", -1)
-    private (string Word, int At) Underline(string text, IReadOnlyList<Misspelling> misspellings, bool checkClick)
+    private (string Word, int At) UnderlineInput(string text, IReadOnlyList<Misspelling> misspellings, bool checkClick)
     {
         var min = ImGui.GetItemRectMin();
         var size = ImGui.GetItemRectSize();
@@ -144,10 +144,10 @@ public sealed class SpellUnderline
         if (ReferenceEquals(Measured.For, misspellings) && Measured.Font == fontSize)
             return Measured.At;
 
-        // One pass gap by gap, not a whole prefix per misspelling: 16 ms a keystroke at 840 of them, measured
+        // One pass gap by gap, not a whole prefix per misspelling: 16 ms a keystroke at 840 of them
         // Unrounded, so the running total can't drift a pixel per word the way CalcTextSize's rounding did
         var font = ImGui.GetFont();
-        float Width(ReadOnlySpan<char> span) => ImGui.CalcTextSizeA(font, fontSize, float.MaxValue, 0f, $"{span}", out _).X;
+        float Width(ReadOnlySpan<char> span) => ImGui.CalcTextSizeA(font, fontSize, float.MaxValue, 0f, span, out _).X;
 
         List<(float Left, float Width)> at = new(misspellings.Count);
         var x = 0f;
@@ -185,10 +185,10 @@ public sealed class SpellUnderline
         PendingAt = at;
     }
 
-    public bool DrawContextEntries(ref string text)
+    public void DrawContextEntries(ref string text)
     {
         if (PendingWord.Length == 0)
-            return false;
+            return;
 
         ImGui.TextDisabled(PendingWord);
 
@@ -210,7 +210,6 @@ public sealed class SpellUnderline
                     text = ReplaceWord(text, PendingWord, suggestion, PendingAt);
 
         ImGui.Separator();
-        return true;
     }
 
     public static string ReplaceWord(string text, string word, string replacement, int at)
