@@ -62,7 +62,11 @@ public sealed class Splitter : IDisposable
     {
         CachedCap = QueryCap();
         CachedInterval = QueryInterval();
+        Generation++;
     }
+
+    // Bumped on every refresh, so a cached split knows the settings behind it changed
+    public int Generation { get; private set; }
 
     private int QueryInterval()
     {

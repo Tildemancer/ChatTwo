@@ -113,6 +113,7 @@ public partial class InputPreview : Window
     private List<Message>? SplitMessages;
 
     private string LastSplitInput = string.Empty;
+    private int LastSplitGeneration = -1;
 
     // TildeTools
     private List<(int Start, int Length)> SplitBodies = [];
@@ -124,10 +125,12 @@ public partial class InputPreview : Window
     private void UpdateSplitParts()
     {
         var line = InputHandler.ComposedLine;
-        if (line == LastSplitInput)
+        var generation = InputHandler.Plugin.Splitter.Generation;
+        if (line == LastSplitInput && generation == LastSplitGeneration)
             return;
 
         LastSplitInput = line;
+        LastSplitGeneration = generation;
         SplitParts = null;
         SplitMessages = null;
         SplitBodies = [];
