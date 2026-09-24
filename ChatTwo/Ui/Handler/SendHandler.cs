@@ -164,7 +164,8 @@ public class SendHandler
                 : SplitTake.NotTaken;
 
             // TildeTools
-            // Must not go out as is. False keeps the text, and the caller keeps its temp channel
+            // Must not go out as is
+            // False keeps the text, and the caller keeps its temp channel
             if (take == SplitTake.Refused)
                 return false;
 
