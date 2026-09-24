@@ -806,100 +806,148 @@ public partial class InputPreview : Window
         }
 
         // TildeTools
-        // Each letter is a Selectable. Its hover box sat on the letter while the caret goes after it,
-        // so hover is cleared and a caret drawn instead. The selected colour does the drag highlight
-        using var letterColours = ImRaii
-            .PushColor(ImGuiCol.Header, ImGui.GetColorU32(ImGuiCol.TextSelectedBg))
-            .Push(ImGuiCol.HeaderHovered, 0u)
-            .Push(ImGuiCol.HeaderActive, 0u);
+        // A widget per word, not per letter: at 11000 letters the Selectables cost about 2.7 ms a frame, measured
+        // Letter edges are measured only where needed: under the pointer, in a selection or under a misspelling
+        var mouse = ImGui.GetIO().MousePos;
+        var selecting = DragAnchor >= 0 || InputHandler.Spelling.InputSelection.Start >= 0;
 
-        // TildeTools
         foreach (var word in WordsOf(text.Content))
         {
             var wordSize = ImGui.CalcTextSize(word);
             if (ImGui.GetContentRegionAvail().X < wordSize.X)
                 ImGui.NewLine();
 
-            foreach (var letter in word)
+            var start = CursorPosition;
+            CursorPosition += word.Length;
+
+            // ImGui refuses a zero-size item
+            var size = wordSize with { X = Math.Max(wordSize.X, 1f) };
+
+            // Layout is all that counts in the measuring child, a pixel tall and taking no input
+            if (Measuring)
             {
-                // TildeTools
-                // Interpolated, the binding formats it in place. ToString made a string per letter per frame
-                var letterSize = ImGui.CalcTextSize($"{letter}");
-
-                CursorPosition++;
-
-                // TildeTools
-                var caret = CaretTargetFor(CursorPosition);
-
-                var clicked = ImGui.Selectable(
-                    $"{letter}##{CursorPosition + unique}", InSelection(caret), ImGuiSelectableFlags.None, letterSize);
-
-                // TildeTools
-                // Drag boundary is whichever half of the letter the pointer's on
-                if (caret >= 0 && !Measuring)
-                {
-                    var from = ImGui.GetItemRectMin();
-                    var to = ImGui.GetItemRectMax();
-                    var mouse = ImGui.GetIO().MousePos;
-
-                    var over = mouse.X >= from.X && mouse.X <= to.X &&
-                               mouse.Y >= from.Y && mouse.Y <= to.Y;
-
-                    if (over)
-                    {
-                        var boundary = mouse.X < (from.X + to.X) / 2f ? caret - 1 : caret;
-
-                        // Hovered as well: a click on a window lying over the preview isn't ours
-                        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left) && ImGui.IsItemHovered())
-                            DragAnchor = DragHead = boundary;
-                        else if (DragAnchor >= 0 && ImGui.IsMouseDown(ImGuiMouseButton.Left))
-                            DragHead = boundary;
-                    }
-                }
-
-                if (clicked && caret >= 0)
-                {
-                    SelectedCursorPos = caret;
-                    InputHandler.FocusedPreview = true;
-                }
-
-                // TildeTools
-                // Caret on the letter's trailing edge. Nothing over a marker, clicking one does nothing
-                if (caret >= 0 && !Measuring && ImGui.IsItemHovered())
-                {
-                    var edge = ImGui.GetItemRectMax().X;
-                    var top = ImGui.GetItemRectMin().Y;
-
-                    ImGui.GetWindowDrawList().AddLine(
-                        new Vector2(edge, top),
-                        new Vector2(edge, ImGui.GetItemRectMax().Y),
-                        ImGui.GetColorU32(ImGuiCol.Text),
-                        ImGuiHelpers.GlobalScale);
-                }
-
-                if (MisspelledWordAt(CursorPosition - 1) is { } misspelled)
-                {
-                    SpellUnderline.UnderlineLastItem();
-
-                    if (!Measuring && ImGui.IsItemClicked(ImGuiMouseButton.Right))
-                    {
-                        // TildeTools
-                        var start = CursorPosition - 1;
-                        while (start > 0 && ReferenceEquals(SpellMarks[start - 1], misspelled))
-                            start--;
-
-                        InputHandler.Spelling.SetPendingWord(misspelled, SourceIndexOf(SplitIndex, start));
-
-                        // TildeTools
-                        // Flagged, not opened: a popup is found by the id stack it was opened under, and this is in a child
-                        OpenSpellingPopup = true;
-                    }
-                }
-
+                ImGui.Dummy(size);
                 ImGui.SameLine();
+                continue;
             }
+
+            // A button, so a press holds the item and a drag over the text can't move the window
+            var released = ImGui.InvisibleButton($"##{start + unique}", size);
+            var from = ImGui.GetItemRectMin();
+            var to = ImGui.GetItemRectMax();
+
+            if (selecting)
+                DrawRuns(word, start, from, to.Y, selection: true);
+
+            ImGui.GetWindowDrawList().AddText(from, ImGui.GetColorU32(ImGuiCol.Text), word);
+            DrawRuns(word, start, from, to.Y, selection: false);
+
+            if (mouse.X >= from.X && mouse.X <= to.X && mouse.Y >= from.Y && mouse.Y <= to.Y)
+                PointAt(word, start, from, to, mouse.X, released);
+
+            ImGui.SameLine();
         }
         ImGui.NewLine();
+    }
+
+    // TildeTools
+    // From the word's left, where letter k starts
+    // Prefix widths: CalcTextSize rounds each call up, so summed letter widths drift
+    private static float EdgeOf(string word, int k) =>
+        k == 0 ? 0f : ImGui.CalcTextSize($"{word.AsSpan(0, k)}").X;
+
+    // TildeTools
+    // The selection behind the text or the misspelling underline, a run of letters at a time
+    private void DrawRuns(string word, int start, Vector2 from, float bottom, bool selection)
+    {
+        var run = -1;
+        for (var k = 0; k <= word.Length; k++)
+        {
+            var marked = k < word.Length &&
+                         (selection ? InSelection(CaretTargetFor(start + k + 1)) : MisspelledWordAt(start + k) != null);
+
+            if (marked && run < 0)
+                run = k;
+
+            if (marked || run < 0)
+                continue;
+
+            var left = from.X + EdgeOf(word, run);
+            var right = from.X + EdgeOf(word, k);
+
+            if (selection)
+                ImGui.GetWindowDrawList().AddRectFilled(
+                    new Vector2(left, from.Y), new Vector2(right, bottom), ImGui.GetColorU32(ImGuiCol.TextSelectedBg));
+            else
+                SpellUnderline.Underline(left, right, bottom);
+
+            run = -1;
+        }
+    }
+
+    // TildeTools
+    // A press's letter, so a release on the same one is a click, as each letter's Selectable had it
+    private int PressedCaret = -1;
+
+    // TildeTools
+    // The letter under the pointer takes the caret, the drag boundary, the click and the spelling menu
+    private void PointAt(string word, int start, Vector2 from, Vector2 to, float mouseX, bool released)
+    {
+        // The last letter whose right edge is still right of the pointer
+        var k = 0;
+        var left = 0f;
+        var right = EdgeOf(word, 1);
+        while (k < word.Length - 1 && mouseX >= from.X + right)
+        {
+            k++;
+            left = right;
+            right = EdgeOf(word, k + 1);
+        }
+
+        var caret = CaretTargetFor(start + k + 1);
+        var hovered = ImGui.IsItemHovered();
+
+        // Hovered as well: a click on a window lying over the preview isn't ours
+        var pressed = hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left);
+        if (pressed)
+            PressedCaret = caret;
+
+        // Drag boundary is whichever half of the letter the pointer's on
+        if (caret >= 0)
+        {
+            var boundary = mouseX < from.X + (left + right) / 2f ? caret - 1 : caret;
+
+            if (pressed)
+                DragAnchor = DragHead = boundary;
+            else if (DragAnchor >= 0 && ImGui.IsMouseDown(ImGuiMouseButton.Left))
+                DragHead = boundary;
+        }
+
+        if (released && caret >= 0 && caret == PressedCaret)
+        {
+            SelectedCursorPos = caret;
+            InputHandler.FocusedPreview = true;
+        }
+
+        // Caret on the letter's trailing edge. Nothing over a marker, clicking one does nothing
+        if (caret >= 0 && hovered)
+        {
+            var edge = from.X + right;
+            ImGui.GetWindowDrawList().AddLine(
+                new Vector2(edge, from.Y), new Vector2(edge, to.Y), ImGui.GetColorU32(ImGuiCol.Text), ImGuiHelpers.GlobalScale);
+        }
+
+        if (MisspelledWordAt(start + k) is { } misspelled && ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        {
+            var first = start + k;
+            while (first > 0 && ReferenceEquals(SpellMarks[first - 1], misspelled))
+                first--;
+
+            InputHandler.Spelling.SetPendingWord(misspelled, SourceIndexOf(SplitIndex, first));
+
+            // Flagged, not opened: a popup is found by the id stack it was opened under, and this is in a child
+            OpenSpellingPopup = true;
+        }
     }
 
     // TildeTools

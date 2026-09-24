@@ -36,15 +36,13 @@ public sealed class SpellUnderline
         return state.IsNull ? 0f : state.ScrollX;
     }
 
-    public static void UnderlineLastItem()
+    public static void Underline(float left, float right, float bottom)
     {
-        var min = ImGui.GetItemRectMin();
-        var max = ImGui.GetItemRectMax();
-        var y = max.Y - Drop * ImGuiHelpers.GlobalScale;
+        var y = bottom - Drop * ImGuiHelpers.GlobalScale;
 
         ImGui.GetWindowDrawList().AddLine(
-            new Vector2(min.X, y),
-            new Vector2(max.X, y),
+            new Vector2(left, y),
+            new Vector2(right, y),
             ImGui.GetColorU32(Colour),
             Thickness * ImGuiHelpers.GlobalScale);
     }
