@@ -853,8 +853,9 @@ public partial class InputPreview : Window
             var wordSize = ImGui.CalcTextSize(word);
 
             // Trailing spaces ride along, but only the word has to fit, as in any wrapped text
-            var fitting = char.IsWhiteSpace(word[^1]) ? ImGui.CalcTextSize($"{word.AsSpan().TrimEnd()}").X : wordSize.X;
-            if (ImGui.GetContentRegionAvail().X < fitting)
+            // The whole first, so the trimmed word is only measured when it might not fit
+            var room = ImGui.GetContentRegionAvail().X;
+            if (room < wordSize.X && room < ImGui.CalcTextSize(word.AsSpan().TrimEnd()).X)
                 ImGui.NewLine();
 
             var start = CursorPosition;
@@ -894,7 +895,7 @@ public partial class InputPreview : Window
     // From the word's left, where letter k starts
     // Prefix widths: CalcTextSize rounds each call up, so summed letter widths drift
     private static float EdgeOf(string word, int k) =>
-        k == 0 ? 0f : ImGui.CalcTextSize($"{word.AsSpan(0, k)}").X;
+        k == 0 ? 0f : ImGui.CalcTextSize(word.AsSpan(0, k)).X;
 
     // TildeTools
     // The selection behind the text or the misspelling underline, a run of letters at a time
