@@ -845,7 +845,6 @@ public partial class InputPreview : Window
         // TildeTools
         // A widget per word, not per letter: at 11000 letters the Selectables cost about 2.7 ms a frame, measured
         // Letter edges are measured only where needed: under the pointer, in a selection or under a misspelling
-        var mouse = ImGui.GetIO().MousePos;
         var selecting = DragAnchor >= 0 || InputHandler.Spelling.InputSelection.Start >= 0;
 
         foreach (var word in WordsOf(text.Content))
@@ -883,8 +882,8 @@ public partial class InputPreview : Window
             ImGui.GetWindowDrawList().AddText(from, ImGui.GetColorU32(ImGuiCol.Text), word);
             DrawRuns(word, start, from, to.Y, selection: false);
 
-            if (mouse.X >= from.X && mouse.X <= to.X && mouse.Y >= from.Y && mouse.Y <= to.Y)
-                PointAt(word, start, from, to, mouse.X, released);
+            if (ImGui.IsMouseHoveringRect(from, to))
+                PointAt(word, start, from, to, released);
 
             ImGui.SameLine();
         }
@@ -932,8 +931,10 @@ public partial class InputPreview : Window
 
     // TildeTools
     // The letter under the pointer takes the caret, the drag boundary, the click and the spelling menu
-    private void PointAt(string word, int start, Vector2 from, Vector2 to, float mouseX, bool released)
+    private void PointAt(string word, int start, Vector2 from, Vector2 to, bool released)
     {
+        var mouseX = ImGui.GetIO().MousePos.X;
+
         // The last letter whose right edge is still right of the pointer
         var k = 0;
         var left = 0f;
