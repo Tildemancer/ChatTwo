@@ -27,6 +27,10 @@ public sealed class SpellUnderline
     // line's end. No state until clicked into, and unfocused draws from the start
     private static unsafe float ScrollOffset()
     {
+        // The state outlives focus, but only an active box draws scrolled or shows its selection
+        if (!ImGui.IsItemActive())
+            return 0f;
+
         var state = ImGuiP.GetInputTextState(ImGuiP.GetItemID());
 
         return state.IsNull ? 0f : state.ScrollX;
@@ -51,7 +55,7 @@ public sealed class SpellUnderline
     private unsafe void CaptureInputSelection()
     {
         var state = ImGuiP.GetInputTextState(ImGuiP.GetItemID());
-        if (state.IsNull)
+        if (state.IsNull || !ImGui.IsItemActive())
         {
             InputSelection = (-1, -1);
             return;
