@@ -1,6 +1,7 @@
 using Dalamud.Interface.Colors;
 using System.Numerics;
 using System.Text;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using ChatTwo.Code;
 using ChatTwo.Resources;
@@ -812,7 +813,8 @@ public partial class InputPreview : Window
             .Push(ImGuiCol.HeaderHovered, 0u)
             .Push(ImGuiCol.HeaderActive, 0u);
 
-        foreach (var word in WhitespaceRegex().Split(text.Content).Where(s => s != string.Empty))
+        // TildeTools
+        foreach (var word in WordsOf(text.Content))
         {
             var wordSize = ImGui.CalcTextSize(word);
             if (ImGui.GetContentRegionAvail().X < wordSize.X)
@@ -899,6 +901,14 @@ public partial class InputPreview : Window
         }
         ImGui.NewLine();
     }
+
+    // TildeTools
+    // Split once per chunk text, not every frame: at 11000 letters it was about 500 KB of garbage a frame, measured
+    // Keyed by the string itself, so an entry goes when its chunk does
+    private static readonly ConditionalWeakTable<string, string[]> Words = new();
+
+    private static string[] WordsOf(string content) =>
+        Words.GetValue(content, c => WhitespaceRegex().Split(c).Where(s => s != string.Empty).ToArray());
 
     [GeneratedRegex(@"(\s)")]
     private static partial Regex WhitespaceRegex();
