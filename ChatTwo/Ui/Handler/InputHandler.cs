@@ -169,7 +169,9 @@ public class InputHandler
                     unsafe { UIGlobals.PlaySoundEffect(ChatCloseSfx); }
                 }
 
-                if (activeTab.CurrentChannel.UseTempChannel)
+                // TildeTools
+                // Not while text waits for that target: a refused send, a preview click or a spelling menu took the focus
+                if (activeTab.CurrentChannel.UseTempChannel && ChatInput.Length == 0)
                 {
                     activeTab.CurrentChannel.ResetTempChannel();
                     Plugin.Functions.Chat.SetChannelWithExtraChat(Plugin.CurrentTab.CurrentChannel.Channel);
