@@ -820,7 +820,9 @@ public partial class InputPreview : Window
 
             foreach (var letter in word)
             {
-                var letterSize = ImGui.CalcTextSize(letter.ToString());
+                // TildeTools
+                // Interpolated, the binding formats it in place. ToString made a string per letter per frame
+                var letterSize = ImGui.CalcTextSize($"{letter}");
 
                 CursorPosition++;
 
