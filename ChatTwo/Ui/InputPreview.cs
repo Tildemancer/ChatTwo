@@ -827,8 +827,7 @@ public partial class InputPreview : Window
         }
 
         // TildeTools
-        // A widget per word, not per letter: at 11000 letters the Selectables cost about 2.7 ms a frame, measured
-        // Letter edges are measured only where needed: under the pointer, in a selection or under a misspelling
+        // A widget per word, not per letter: at 11000 letters the Selectables cost about 2.7 ms a frame
         var selecting = DragAnchor >= 0 || InputHandler.Spelling.InputSelection.Start >= 0;
 
         foreach (var word in WordsOf(text.Content))
@@ -910,16 +909,14 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    // A press's letter, so a release on the same one is a click, as each letter's Selectable had it
     private int PressedCaret = -1;
 
     // TildeTools
-    // The letter under the pointer takes the caret, the drag boundary, the click and the spelling menu
     private void PointAt(string word, int start, Vector2 from, Vector2 to, bool released)
     {
         var mouseX = ImGui.GetIO().MousePos.X;
 
-        // The last letter whose right edge is still right of the pointer
+        // The letter under the pointer: the first whose right edge is past mouseX, else the last
         var k = 0;
         var left = 0f;
         var right = EdgeOf(word, 1);
@@ -949,6 +946,7 @@ public partial class InputPreview : Window
                 DragHead = boundary;
         }
 
+        // A press and release on the same letter is a click, as each letter's Selectable had it
         if (released && caret >= 0 && caret == PressedCaret)
         {
             SelectedCursorPos = caret;
@@ -977,10 +975,11 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    // Split once per chunk text, not every frame: at 11000 letters it was about 500 KB of garbage a frame, measured
-    // Keyed by the string itself, so an entry goes when its chunk does
     private static readonly ConditionalWeakTable<string, string[]> Words = new();
 
+    // TildeTools
+    // Split once per chunk text, not every frame: at 11000 letters it was about 500 KB of garbage a frame
+    // Keyed by the chunk's string instance, so an entry goes when its chunk does
     private static string[] WordsOf(string content) =>
         Words.GetValue(content, c => WordRegex().Matches(c).Select(m => m.Value).ToArray());
 
