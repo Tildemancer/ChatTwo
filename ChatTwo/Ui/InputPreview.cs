@@ -1,4 +1,3 @@
-using Dalamud.Interface.Colors;
 using System.Numerics;
 using System.Text;
 using System.Runtime.CompilerServices;
@@ -28,8 +27,6 @@ public partial class InputPreview : Window
 
     // TildeTools
     private string LastInput = string.Empty;
-
-    // TildeTools
     private string LastTrimmed = string.Empty;
     private Message? PreviewMessage;
 
@@ -524,7 +521,7 @@ public partial class InputPreview : Window
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
             {
                 ImGui.TextUnformatted(Language.Options_Preview_Header);
-                DrawChunksPreview(PreviewMessage!.Content, InputHandler.PayloadHandler, unique: 10000);
+                DrawChunksPreview(PreviewMessage!.Content, InputHandler.PayloadHandler);
             }
 
             DrawSpellingPopup();
@@ -574,12 +571,6 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    private string SpellSource = string.Empty;
-
-    // TildeTools
-    private (int Start, int Length)? SpellBody;
-
-    // TildeTools
     // Built once per source, per letter would be a cross-plugin call each
     private string?[] SpellMarks = [];
 
@@ -597,12 +588,6 @@ public partial class InputPreview : Window
     // signal, so without this the last word of every part is never checked
     private void SetSpellSource(string text, bool complete = false, (int Start, int Length)? body = null)
     {
-        // TildeTools
-        // By value. By instance it rebuilt every frame: Trim makes a new string on a trailing space,
-        // and split parts swap in and out
-        SpellSource = text;
-        SpellBody = body;
-
         // A word added or ignored changes the answers for text that has not changed.
         var generation = InputHandler.Plugin.SpellCheck.Generation;
         if (generation != MarksGeneration)
@@ -611,6 +596,9 @@ public partial class InputPreview : Window
             MarksGeneration = generation;
         }
 
+        // TildeTools
+        // By value. By instance it rebuilt every frame: Trim makes a new string on a trailing space,
+        // and split parts swap in and out
         var key = (text, complete, body);
         if (MarksFor.TryGetValue(key, out var remembered))
         {
@@ -717,8 +705,7 @@ public partial class InputPreview : Window
         using var indent = ImRaii.PushIndent();
 
         // TildeTools
-        // The marks belong to the source, so they go back with it
-        var previousSource = SpellSource;
+        // The whole text's marks, back after each part
         var previousMarks = SpellMarks;
         var previousSplitIndex = SplitIndex;
 
@@ -737,19 +724,16 @@ public partial class InputPreview : Window
                 complete: !lastPart || FinishedTyping(typed),
                 body: index < SplitBodies.Count ? SplitBodies[index] : null);
 
-            // TildeTools
-            // Ids spaced per part, so the same letter in two parts is two items
-            DrawChunksPreview(messages[index].Content, handler, unique: 100000 * (index + 1));
+            DrawChunksPreview(messages[index].Content, handler);
         }
         finally
         {
-            SpellSource = previousSource;
             SpellMarks = previousMarks;
             SplitIndex = previousSplitIndex;
         }
     }
 
-    private void DrawChunksPreview(IReadOnlyList<Chunk> chunks, PayloadHandler? handler = null, float lineWidth = 0f, int unique = 0)
+    private void DrawChunksPreview(IReadOnlyList<Chunk> chunks, PayloadHandler? handler = null, float lineWidth = 0f)
     {
         CursorPosition = 0;
 
@@ -759,7 +743,7 @@ public partial class InputPreview : Window
             if (chunks[i] is TextChunk text && string.IsNullOrEmpty(text.Content))
                 continue;
 
-            DrawChunkPreview(chunks[i], handler, lineWidth, unique);
+            DrawChunkPreview(chunks[i], handler, lineWidth);
 
             if (i < chunks.Count - 1)
             {
@@ -775,7 +759,7 @@ public partial class InputPreview : Window
         }
     }
 
-    private void DrawChunkPreview(Chunk chunk, PayloadHandler? handler = null, float lineWidth = 0f, int unique = 0)
+    private void DrawChunkPreview(Chunk chunk, PayloadHandler? handler = null, float lineWidth = 0f)
     {
         if (chunk is IconChunk icon)
         {
@@ -872,7 +856,7 @@ public partial class InputPreview : Window
             }
 
             // A button, so a press holds the item and a drag over the text can't move the window
-            var released = ImGui.InvisibleButton($"##{start + unique}", size);
+            var released = ImGui.InvisibleButton($"##{start}", size);
             var from = ImGui.GetItemRectMin();
             var to = ImGui.GetItemRectMax();
 
