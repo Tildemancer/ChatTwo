@@ -32,6 +32,14 @@ public sealed class SpellUnderline
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
 
     /// <summary>
+    /// Where each mark sits, measured from the start of the text, for the last list of
+    /// misspellings and font size seen. Measuring every frame was a whole-prefix
+    /// CalcTextSize per misspelling: forty words into a long message is forty long
+    /// measurements a frame for positions that had not moved.
+    /// </summary>
+    private (IReadOnlyList<Misspelling> For, float Font, List<(float Left, float Width)> At) Measured = ([], 0f, []);
+
+    /// <summary>
     /// How far the box has scrolled sideways.
     ///
     /// Taken off the input's own state, not worked out from the caret. The caret only
@@ -134,16 +142,33 @@ public sealed class SpellUnderline
         var clickedWord = string.Empty;
         var clickedAt = -1;
 
-        foreach (var misspelling in misspellings)
+        var fontSize = ImGui.GetFontSize();
+        if (!ReferenceEquals(Measured.For, misspellings) || Measured.Font != fontSize)
         {
-            if (misspelling.Start < 0 || misspelling.Start + misspelling.Length > text.Length)
+            // Whole prefix each time, not a running total. CalcTextSize rounds each call
+            // up to a whole pixel, so a running total drifts a pixel per word.
+            List<(float Left, float Width)> at = new(misspellings.Count);
+            foreach (var misspelling in misspellings)
+            {
+                var valid = misspelling.Start >= 0 && misspelling.Start + misspelling.Length <= text.Length;
+                at.Add(valid
+                    ? (ImGui.CalcTextSize(text.AsSpan(0, misspelling.Start)).X,
+                       ImGui.CalcTextSize(text.AsSpan(misspelling.Start, misspelling.Length)).X)
+                    : (float.NaN, 0f));
+            }
+
+            Measured = (misspellings, fontSize, at);
+        }
+
+        for (var i = 0; i < misspellings.Count; i++)
+        {
+            var misspelling = misspellings[i];
+            var (offset, width) = Measured.At[i];
+            if (float.IsNaN(offset))
                 continue;
 
-            // Whole prefix each time, not a running total. Turns out CalcTextSize
-            // rounds each call up to a whole pixel, so the total drifts a pixel per
-            // word. By the tenth the line sits off the end.
-            var left = min.X + inset - scroll + ImGui.CalcTextSize(text.AsSpan(0, misspelling.Start)).X;
-            var right = left + ImGui.CalcTextSize(text.Substring(misspelling.Start, misspelling.Length)).X;
+            var left = min.X + inset - scroll + offset;
+            var right = left + width;
 
             drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, thick);
 
