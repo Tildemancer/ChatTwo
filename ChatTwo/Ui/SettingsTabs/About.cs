@@ -45,6 +45,13 @@ public sealed class About : ISettingsTab
         ImGui.SameLine();
         ImGui.TextColored(ImGuiColors.ParsedGold, Hosting.IsHosted ? "Anna and Infi" : Plugin.Interface.Manifest.Author);
 
+        if (Hosting.IsHosted)
+        {
+            ImGui.TextUnformatted("Fork author: ");
+            ImGui.SameLine();
+            ImGui.TextColored(ImGuiColors.ParsedGold, Plugin.Interface.Manifest.Author);
+        }
+
         ImGui.TextUnformatted(Language.Options_About_Discord);
         ImGui.SameLine();
         ImGui.TextColored(ImGuiColors.ParsedGold, Hosting.IsHosted ? "@tildemancer" : "@infi");
