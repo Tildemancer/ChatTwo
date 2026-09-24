@@ -1,6 +1,7 @@
 // TildeTools: written for this fork, not part of upstream Chat 2.
 
 using Dalamud.Plugin.Ipc;
+using Dalamud.Plugin.Ipc.Exceptions;
 
 namespace ChatTwo.Ipc;
 
@@ -221,9 +222,18 @@ public sealed class Splitter : IDisposable
                 _ => SplitTake.NotTaken,
             };
         }
-        catch
+        catch (IpcNotReadyError)
         {
+            // A splitter from before SendLineStatus. The yes/no gate is all it has.
             return TrySend(line) ? SplitTake.Queued : SplitTake.NotTaken;
+        }
+        catch (Exception ex)
+        {
+            // The gate is there and threw. It may have queued the line first, so offering
+            // it again through SendLine could send it twice. Keep it in the box instead.
+            Plugin.Log.Error(ex, "The splitter failed on a line; kept it in the box.");
+            Plugin.ChatGui.PrintError("[Chat 2] The splitter hit an error, so that message was kept in the box.");
+            return SplitTake.Refused;
         }
     }
 
