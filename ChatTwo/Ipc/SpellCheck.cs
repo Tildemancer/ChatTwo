@@ -18,7 +18,7 @@ public sealed class SpellCheck : IDisposable
 
     private ICallGateSubscriber<int> ApiVersionGate { get; }
     private ICallGateSubscriber<string, List<int>> CheckGate { get; }
-    private ICallGateSubscriber<string, List<string>> SuggestGate { get; }
+    private ICallGateSubscriber<string, List<string>?> SuggestGate { get; }
     private ICallGateSubscriber<string, bool> AddGate { get; }
     private ICallGateSubscriber<string, bool> IgnoreGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
@@ -35,7 +35,7 @@ public sealed class SpellCheck : IDisposable
     {
         ApiVersionGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Spell.ApiVersion");
         CheckGate = Plugin.Interface.GetIpcSubscriber<string, List<int>>("TildeTools.Spell.Check");
-        SuggestGate = Plugin.Interface.GetIpcSubscriber<string, List<string>>("TildeTools.Spell.Suggest");
+        SuggestGate = Plugin.Interface.GetIpcSubscriber<string, List<string>?>("TildeTools.Spell.Suggest");
         AddGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.AddToDictionary");
         IgnoreGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.Ignore");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Spell.Available");
@@ -51,7 +51,6 @@ public sealed class SpellCheck : IDisposable
         Refresh();
 
         Cached.Clear();
-        LastSuggested = string.Empty;
         Generation++;
     }
 
@@ -105,31 +104,17 @@ public sealed class SpellCheck : IDisposable
         return result;
     }
 
-    private string LastSuggested = string.Empty;
-    private IReadOnlyList<string> LastSuggestions = [];
-
-    // Cached, the open menu asks every frame and a lookup costs tens of ms
-    // Null while Wordsmith is still looking, and not kept, so the next frame asks again
+    // Null while Wordsmith is still looking, the menu asks again next frame
     public IReadOnlyList<string>? Suggest(string word)
     {
-        if (word == LastSuggested)
-            return LastSuggestions;
-
-        List<string>? found;
         try
         {
-            found = SuggestGate.InvokeFunc(word);
+            return SuggestGate.InvokeFunc(word);
         }
         catch
         {
-            found = [];
+            return [];
         }
-
-        if (found is null)
-            return null;
-
-        (LastSuggested, LastSuggestions) = (word, found);
-        return found;
     }
 
     public void AddToDictionary(string word)
@@ -143,7 +128,6 @@ public sealed class SpellCheck : IDisposable
         }
 
         Cached.Clear();
-        LastSuggested = string.Empty;
         Generation++;
     }
 
@@ -159,7 +143,6 @@ public sealed class SpellCheck : IDisposable
         }
 
         Cached.Clear();
-        LastSuggested = string.Empty;
         Generation++;
     }
 
