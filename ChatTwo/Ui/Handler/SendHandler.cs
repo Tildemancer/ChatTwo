@@ -29,11 +29,11 @@ public class SendHandler
     }
 
     // TildeTools
-    private static (string Input, string Head, string Line) Composed = (string.Empty, string.Empty, string.Empty);
+    private (string Input, string Head, string Line) Composed = (string.Empty, string.Empty, string.Empty);
 
     // TildeTools
     // Mirrors SendChatBox so the preview agrees with the send. Change one, change both
-    public static string ComposeLine(Tab activeTab, string chatInput)
+    public string ComposeLine(Tab activeTab, string chatInput)
     {
         var target = activeTab.TellTarget.IsSet()
             ? activeTab.TellTarget
