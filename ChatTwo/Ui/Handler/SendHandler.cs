@@ -102,33 +102,31 @@ public class SendHandler
                 var target = activeTab.TellTarget.IsSet() ? activeTab.TellTarget : activeTab.CurrentChannel.TempTellTarget ?? activeTab.CurrentChannel.TellTarget;
                 if (target != null)
                 {
+                    // TildeTools
+                    // Every tell, one that fits can carry a break marker
+                    var tellTake = Plugin.Splitter.Offer($"/tell {target.ToTargetString()} {trimmed}");
+
+                    if (tellTake == SplitTake.Queued)
+                    {
+                        activeTab.CurrentChannel.ResetTempChannel();
+                        chatInput = string.Empty;
+                        return true;
+                    }
+
+                    // TildeTools
+                    // Refused: sent anyway a long one's dropped for length and the text's gone, so keep it in the box
+                    if (tellTake == SplitTake.Refused)
+                        return false;
+
                     // ContentId 0 is a case where we can't directly send messages, so we send a /tell formatted message and let the game handle it
                     //
                     // An over-length tell takes the same route even when we could
                     // send it directly, because SendTell has no way to break a
                     // message up: it is one call carrying one message. Written as a
                     // command instead, a splitter can cut it into several tells.
-                    var oversized = Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap;
-                    if (target.ContentId == 0 || oversized)
+                    if (target.ContentId == 0 || Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap)
                     {
                         trimmed = $"/tell {target.ToTargetString()} {trimmed}";
-
-                        if (oversized)
-                        {
-                            var tellTake = Plugin.Splitter.Offer(trimmed);
-
-                            if (tellTake == SplitTake.Queued)
-                            {
-                                activeTab.CurrentChannel.ResetTempChannel();
-                                chatInput = string.Empty;
-                                return true;
-                            }
-
-                            // TildeTools
-                            // Refused: sent anyway it's dropped for length and the text's gone, so keep it in the box
-                            if (tellTake == SplitTake.Refused)
-                                return false;
-                        }
 
                         var tellBytes = Encoding.UTF8.GetBytes(trimmed);
                         AutoTranslate.ReplaceWithPayload(ref tellBytes);
@@ -165,10 +163,9 @@ public class SendHandler
             }
 
             // TildeTools
-            // Before auto-translate becomes bytes, so the splitter only sees plain text. Under the cap isn't offered
-            var take = Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap
-                ? Plugin.Splitter.Offer(trimmed)
-                : SplitTake.NotTaken;
+            // Before auto-translate becomes bytes, so the splitter only sees plain text
+            // Every line, it declines one that fits with no break marker
+            var take = Plugin.Splitter.Offer(trimmed);
 
             // TildeTools
             // Must not go out as is
