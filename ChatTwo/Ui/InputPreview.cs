@@ -201,7 +201,7 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
-    // part -> body -> composed line -> box. A step that can't be made gives -1, not a guess
+    // part -> body -> composed line -> box. A step that can't be made gives -1
     private int SourceIndexOf(int partIndex, int positionInPart)
     {
         var typedText = InputHandler.ChatInput;

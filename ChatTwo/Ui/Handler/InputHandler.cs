@@ -191,7 +191,7 @@ public class InputHandler
     }
 
     // TildeTools
-    // The box works in bytes, the preview in chars. They part ways at the first accent
+    // Box works in bytes, preview in chars. Drifts on accents
     private static int ByteIndex(string text, int position) =>
         Encoding.UTF8.GetByteCount(text.AsSpan(0, Math.Clamp(position, 0, text.Length)));
 

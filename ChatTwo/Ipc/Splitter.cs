@@ -105,7 +105,8 @@ public sealed class Splitter : IDisposable
     // Recorded, not inferred from the cap: a splitter reporting exactly 500 would look absent
     public bool IsAvailable { get; private set; }
 
-    // Outside the span is the splitter's own. Empty when it's too old to say
+    // Outside the span is the splitter's own
+    // Empty when it's too old to say
     public List<(int Start, int Length)> BodySpans(string line)
     {
         try
@@ -186,7 +187,7 @@ public sealed class Splitter : IDisposable
         }
         catch (Exception ex)
         {
-            // The gate's there and threw. It may have queued first, so SendLine could send twice. Keep it in the box
+            // The gate's there and threw. It may have queued first, so SendLine could send twice, keep it in the box
             Plugin.Log.Error(ex, "The splitter failed on a line; kept it in the box.");
             Plugin.ChatGui.PrintError("[Chat 2] The splitter hit an error, so that message was kept in the box.");
             return SplitTake.Refused;

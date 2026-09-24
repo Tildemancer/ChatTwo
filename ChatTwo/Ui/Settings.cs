@@ -130,7 +130,8 @@ public sealed class SettingsWindow : Window
         }
 
         // TildeTools
-        // Anna's and Infi's Ko-fi links live on our Credits tab, with the context an appeal inside someone else's plugin needs
+        // Anna's and Infi's Ko-fi links live on our Credits tab so they don't get asked to maintain issues with this.
+        // If we're a third party plugin of a third party tool, are we a ninth party plugin?
 
         if (!save)
             return;
