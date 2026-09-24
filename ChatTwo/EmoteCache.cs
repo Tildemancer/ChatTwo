@@ -70,7 +70,9 @@ public static class EmoteCache
                     Cache.TryAdd(emote.Code, emote);
 
             var jsonString = await File.ReadAllTextAsync(Path.Combine(Plugin.Interface.AssemblyLocation.Directory!.FullName, "SharedEmoteList.json"));
-            Plugin.Log.Information(jsonString);
+            // TildeTools
+            // Debug, not Information: the whole emote list in the log every start
+            Plugin.Log.Debug(jsonString);
             foreach (var emote in JsonSerializer.Deserialize<Emote[]>(jsonString)!)
                 if (!NotWorking.Contains(emote.Code))
                     Cache.TryAdd(emote.Code, emote);
