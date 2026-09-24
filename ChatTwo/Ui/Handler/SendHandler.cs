@@ -64,6 +64,17 @@ public class SendHandler
             AddBacklog(trimmed);
             InputBacklogIdx = -1;
 
+            // TildeTools
+            // Neither of the next two can be split: one goes out as payload bytes, the other
+            // through the game's tell command rather than as a line. Over the cap, the game
+            // drops them without a word, so they stay in the box instead.
+            if (Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap
+                && (tellSpecial || StartsWithTranslationCommand(trimmed)))
+            {
+                Plugin.ChatGui.PrintError("[Chat 2] That message is too long to send this way, so it was kept in the box.");
+                return;
+            }
+
             if (HasTranslationCommand(trimmed))
             {
                 activeTab.CurrentChannel.ResetTempChannel();
@@ -179,6 +190,14 @@ public class SendHandler
 
         activeTab.CurrentChannel.ResetTempChannel();
         chatInput = string.Empty;
+    }
+
+    // TildeTools
+    // On a copy: StartsWithCommand rewrites the bytes it is given.
+    private static bool StartsWithTranslationCommand(string trimmed)
+    {
+        var bytes = Encoding.UTF8.GetBytes(trimmed);
+        return AutoTranslate.StartsWithCommand(ref bytes);
     }
 
     private bool HasTranslationCommand(string trimmed)
