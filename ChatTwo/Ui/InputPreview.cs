@@ -115,6 +115,44 @@ public partial class InputPreview : Window
     }
 
     // TildeTools
+    // The last split's bodies by text: when the count moves, #m changes every part but not its body
+    private Dictionary<string, List<Chunk>> ParsedBodies = [];
+    private bool ParsedWithEmotes;
+
+    // TildeTools
+    // Only the body is tokenized, about 0.3 ms per 500 characters, and the affixes around it stay plain text
+    // The body takes the space before the suffix, so its words are the ones one parse of the part gives
+    private Message BuildPart(string part, (int Start, int Length)? span, Dictionary<string, Message> built,
+        Dictionary<string, List<Chunk>> kept)
+    {
+        if (span is not { } body || body.Start < 0 || body.Start + body.Length > part.Length)
+            return built.GetValueOrDefault(part) ?? BuildMessage(part);
+
+        var end = body.Start + body.Length;
+        if (end < part.Length && part[end] == ' ')
+            end++;
+
+        // Carried over for an unchanged part too, or it's parsed again the next time the count moves
+        var text = part[body.Start..end];
+        if (kept.TryGetValue(text, out var parsed))
+            ParsedBodies.TryAdd(text, parsed);
+
+        if (built.TryGetValue(part, out var message))
+            return message;
+
+        if (!ParsedBodies.TryGetValue(text, out parsed))
+            ParsedBodies[text] = parsed = BuildMessage(text).Content;
+
+        List<Chunk> content = [.. Plain(part[..body.Start]), .. parsed, .. Plain(part[end..])];
+        return new Message(Guid.NewGuid(), 0, 0, DateTimeOffset.UtcNow, new ChatCode(XivChatType.Say, 0, 0),
+            [], content, new SeString(), new SeString(), Guid.Empty);
+
+        static IEnumerable<Chunk> Plain(string affix) => affix.Length == 0
+            ? []
+            : ChunkUtil.ToChunks(new SeString(new TextPayload(affix)), ChunkSource.Content, ChatType.Say);
+    }
+
+    // TildeTools
     private List<string>? SplitParts;
 
     // TildeTools
@@ -159,11 +197,18 @@ public partial class InputPreview : Window
         if (parts is not { Count: > 1 })
             return;
 
-        SplitParts = parts;
-        SplitMessages = [.. parts.Select(part => built.GetValueOrDefault(part) ?? BuildMessage(part))];
-
         // TildeTools
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
+
+        // TildeTools
+        // The last split's bodies, unless emotes were switched on or off since
+        var kept = ParsedWithEmotes == Plugin.Config.ShowEmotes ? ParsedBodies : [];
+        ParsedBodies = [];
+        ParsedWithEmotes = Plugin.Config.ShowEmotes;
+
+        SplitParts = parts;
+        SplitMessages = [.. parts.Select((part, i) =>
+            BuildPart(part, i < SplitBodies.Count ? SplitBodies[i] : null, built, kept))];
 
         // TildeTools
         SplitSources = InputHandler.Plugin.Splitter.BodySources(line);
