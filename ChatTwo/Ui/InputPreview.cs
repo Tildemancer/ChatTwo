@@ -201,7 +201,7 @@ public partial class InputPreview : Window
     private int SourceIndexOf(int partIndex, int positionInPart)
     {
         var typedText = InputHandler.ChatInput;
-        var leading = typedText.Length - typedText.TrimStart().Length;
+        var (leading, prefix) = MapBasis();
 
         // Nothing was split, so the drawn text is the box's own, trimmed. Only the
         // leading spaces stand between the two. Most messages come through here.
@@ -221,12 +221,25 @@ public partial class InputPreview : Window
 
         var composed = SplitSources[partIndex] + offset;
 
-        // ComposeLine only ever prepends, and always to the TRIMMED input, so the gap
-        // between the two is fixed and the leading spaces have to be added back.
-        var prefix = InputHandler.ComposedLine.Length - typedText.Trim().Length;
-
         var index = composed - prefix + leading;
         return index >= 0 && index < typedText.Length ? index : -1;
+    }
+
+    // TildeTools
+    // Once per text, not per letter: SourceIndexOf runs for every drawn letter, and Trim copies the whole input
+    private (string Typed, string Composed, int Leading, int Prefix) Basis = ("", "", 0, 0);
+
+    private (int Leading, int Prefix) MapBasis()
+    {
+        var typed = InputHandler.ChatInput;
+        var composed = InputHandler.ComposedLine;
+        if (ReferenceEquals(typed, Basis.Typed) && ReferenceEquals(composed, Basis.Composed))
+            return (Basis.Leading, Basis.Prefix);
+
+        // ComposeLine only ever prepends, and always to the TRIMMED input, so the gap
+        // between the two is fixed and the leading spaces have to be added back.
+        Basis = (typed, composed, typed.Length - typed.TrimStart().Length, composed.Length - typed.Trim().Length);
+        return (Basis.Leading, Basis.Prefix);
     }
 
     public bool IsDrawable => ValidDraw && HasEvaluation;
