@@ -463,8 +463,9 @@ public partial class InputPreview : Window
         {
             if (DragHead >= 0 && DragHead != DragAnchor)
             {
-                SelectedRangeStart = Math.Min(DragAnchor, DragHead);
-                SelectedRangeEnd = Math.Max(DragAnchor, DragHead);
+                // Anchor then head, not low then high: the box's caret goes where the drag ended
+                SelectedRangeStart = DragAnchor;
+                SelectedRangeEnd = DragHead;
                 InputHandler.FocusedPreview = true;
             }
 
