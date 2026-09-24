@@ -29,25 +29,31 @@ public class SendHandler
     }
 
     // TildeTools
+    private static (string Input, string Head, string Line) Composed = (string.Empty, string.Empty, string.Empty);
+
+    // TildeTools
     // Mirrors SendChatBox so the preview agrees with the send. Change one, change both
     public static string ComposeLine(Tab activeTab, string chatInput)
     {
-        var trimmed = chatInput.Trim();
-        if (trimmed.Length == 0 || trimmed.StartsWith('/'))
-            return trimmed;
-
         var target = activeTab.TellTarget.IsSet()
             ? activeTab.TellTarget
             : activeTab.CurrentChannel.TempTellTarget ?? activeTab.CurrentChannel.TellTarget;
 
-        if (target != null)
-            return $"/tell {target.ToTargetString()} {trimmed}";
+        var head = target != null
+            ? $"/tell {target.ToTargetString()}"
+            : activeTab.CurrentChannel.UseTempChannel
+                ? activeTab.CurrentChannel.TempChannel.Prefix()
+                : activeTab.CurrentChannel.Channel.Prefix();
 
-        var prefix = activeTab.CurrentChannel.UseTempChannel
-            ? activeTab.CurrentChannel.TempChannel.Prefix()
-            : activeTab.CurrentChannel.Channel.Prefix();
+        // Asked every frame, and trimming and joining the same line again is a 36 KB copy each at 18k characters
+        if (chatInput == Composed.Input && head == Composed.Head)
+            return Composed.Line;
 
-        return $"{prefix} {trimmed}";
+        var trimmed = chatInput.Trim();
+        var line = trimmed.Length == 0 || trimmed.StartsWith('/') ? trimmed : $"{head} {trimmed}";
+
+        Composed = (chatInput, head, line);
+        return line;
     }
 
     // TildeTools
