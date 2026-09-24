@@ -88,11 +88,15 @@ public partial class InputPreview : Window
             PreviewMessage = BuildMessage(Encoding.UTF8.GetByteCount(LastTrimmed) > Ipc.Splitter.DefaultByteCap ? string.Empty : LastTrimmed);
         }
 
+        UpdateSplitParts();
+
         // TildeTools
         // A trailing space is the checker's done-signal, and Trim would throw it away
-        SetSpellSource(LastTrimmed, complete: char.IsWhiteSpace(InputHandler.ChatInput[^1]));
-
-        UpdateSplitParts();
+        // Split, each part marks itself: the whole text's marks were a 144 KB array a keystroke at 18k, never drawn
+        if (SplitMessages is null)
+            SetSpellSource(LastTrimmed, complete: char.IsWhiteSpace(InputHandler.ChatInput[^1]));
+        else
+            SpellMarks = [];
 
         // TildeTools
         HasEvaluation = !Plugin.Config.OnlyPreviewIf || PreviewMessage.Content.Count > 1 || SplitHasEvaluation;
