@@ -65,6 +65,10 @@ public partial class InputPreview : Window
         {
             LastInput = string.Empty;
             PreviewHeight = 0;
+
+            // TildeTools
+            // The height was just zeroed, so the next measure must run even for the same text.
+            MeasuredFor = null;
             PreviewMessage = null;
             HasEvaluation = false;
 
@@ -342,8 +346,24 @@ public partial class InputPreview : Window
     /// <summary>Which parts go in which column, filled top to bottom then left to right.</summary>
     private readonly List<List<int>> Columns = [];
 
+    // TildeTools
+    /// <summary>
+    /// What the last measure was taken for. Measuring lays the whole preview out
+    /// invisibly, which cost about as much as drawing it, every frame. Nothing it
+    /// depends on changes between most frames: selection and hover do not move text.
+    /// </summary>
+    private (Message? Preview, List<Message>? Parts, float Window, bool WindowMode, float Screen, float Font)? MeasuredFor;
+
     public void CalculatePreview()
     {
+        // TildeTools
+        var key = (PreviewMessage, SplitMessages, InputHandler.MainWindow.LastWindowSize.X,
+            IsWindowMode, ImGui.GetIO().DisplaySize.Y, ImGui.GetFontSize());
+        if (MeasuredFor == key)
+            return;
+
+        MeasuredFor = key;
+
         // We Pre-draw this once to get the actual height :HideThePain:
         PreviewHeight = 0;
 
