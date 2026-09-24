@@ -199,14 +199,15 @@ public sealed class SpellUnderline
             Plugin.SpellCheck.Ignore(PendingWord);
 
         var suggestions = Plugin.SpellCheck.Suggest(PendingWord);
-        if (suggestions.Count > 0)
-        {
+        if (suggestions is null || suggestions.Count > 0)
             ImGui.Separator();
 
+        if (suggestions is null)
+            ImGui.TextDisabled("Looking for corrections...");
+        else
             foreach (var suggestion in suggestions.Take(8))
                 if (ImGui.Selectable(suggestion))
                     text = ReplaceWord(text, PendingWord, suggestion, PendingAt);
-        }
 
         ImGui.Separator();
         return true;

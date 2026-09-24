@@ -109,22 +109,27 @@ public sealed class SpellCheck : IDisposable
     private IReadOnlyList<string> LastSuggestions = [];
 
     // Cached, the open menu asks every frame and a lookup costs tens of ms
-    public IReadOnlyList<string> Suggest(string word)
+    // Null while Wordsmith is still looking, and not kept, so the next frame asks again
+    public IReadOnlyList<string>? Suggest(string word)
     {
         if (word == LastSuggested)
             return LastSuggestions;
 
+        List<string>? found;
         try
         {
-            LastSuggestions = SuggestGate.InvokeFunc(word);
+            found = SuggestGate.InvokeFunc(word);
         }
         catch
         {
-            LastSuggestions = [];
+            found = [];
         }
 
-        LastSuggested = word;
-        return LastSuggestions;
+        if (found is null)
+            return null;
+
+        (LastSuggested, LastSuggestions) = (word, found);
+        return found;
     }
 
     public void AddToDictionary(string word)
