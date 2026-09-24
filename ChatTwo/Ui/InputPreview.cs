@@ -28,6 +28,9 @@ public partial class InputPreview : Window
 
     // TildeTools
     private string LastInput = string.Empty;
+
+    // TildeTools
+    private string LastTrimmed = string.Empty;
     private Message? PreviewMessage;
 
     private int CursorPosition;
@@ -77,28 +80,26 @@ public partial class InputPreview : Window
             return;
         }
 
-        // TildeTools
-        // A trailing space is the checker's done-signal, and Trim would throw it away
-        var typed = InputHandler.ChatInput;
-        SetSpellSource(typed.Trim(), complete: typed.Length > 0 && char.IsWhiteSpace(typed[^1]));
-
         if (PreviewMessage == null || LastInput != InputHandler.ChatInput)
         {
             LastInput = InputHandler.ChatInput;
+            LastTrimmed = LastInput.Trim();
 
             // TildeTools
-            // Past the cap only the parts are drawn, so the whole is left empty
+            // Past the cap only the parts are drawn, or just the header when the splitter declines
             // Parsed, it cost 28-35 ms at 18k characters: ReplaceWithPayload copies bytes[i..] at every byte
-            var trimmed = InputHandler.ChatInput.Trim();
-            PreviewMessage = BuildMessage(Encoding.UTF8.GetByteCount(trimmed) > Ipc.Splitter.DefaultByteCap ? string.Empty : trimmed);
+            PreviewMessage = BuildMessage(Encoding.UTF8.GetByteCount(LastTrimmed) > Ipc.Splitter.DefaultByteCap ? string.Empty : LastTrimmed);
         }
 
         // TildeTools
-        // Past the cap the whole is empty, so OnlyPreviewIf asks the parts instead
-        HasEvaluation = !Plugin.Config.OnlyPreviewIf || PreviewMessage.Content.Count > 1 ||
-                        SplitMessages?.Any(part => part.Content.Count > 1) == true;
+        // A trailing space is the checker's done-signal, and Trim would throw it away
+        SetSpellSource(LastTrimmed, complete: char.IsWhiteSpace(InputHandler.ChatInput[^1]));
 
         UpdateSplitParts();
+
+        // TildeTools
+        HasEvaluation = !Plugin.Config.OnlyPreviewIf || PreviewMessage.Content.Count > 1 ||
+                        SplitMessages?.Exists(part => part.Content.Count > 1) == true;
     }
 
     // TildeTools
