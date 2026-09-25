@@ -19,7 +19,8 @@ public sealed class SpellUnderline
 
     private string PendingWord = string.Empty;
 
-    // Only the position tells two identical words apart. Without it the fourth "teh" fixed the first
+    // Only the position tells two identical words apart
+    // Without it the fourth "teh" fixed the first
     private int PendingAt = -1;
 
     // Corrections only for a misspelling, any word gets Synonyms and Define
@@ -85,19 +86,28 @@ public sealed class SpellUnderline
         if (string.IsNullOrEmpty(text) || !Plugin.SpellCheck.IsAvailable)
             return;
 
-        var rightClicked = ImGui.IsItemHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Right);
         var misspellings = Plugin.SpellCheck.Check(text);
-        var clicked = misspellings.Count > 0 ? UnderlineInput(text, misspellings, rightClicked) : (Word: string.Empty, At: -1);
+        if (misspellings.Count > 0)
+            UnderlineInput(text, misspellings);
 
-        // Only for a click in this box. The preview draws first, so a click latched there got wiped here
-        if (!rightClicked)
+        // Only for a click in this box
+        // The preview draws first, so a click latched there got wiped here
+        if (!ImGui.IsItemHovered() || !ImGui.IsMouseClicked(ImGuiMouseButton.Right))
             return;
 
-        var origin = ImGui.GetItemRectMin().X + ImGui.GetStyle().FramePadding.X - InputScroll;
+        var index = IndexAt(text, ImGui.GetIO().MousePos.X - (ImGui.GetItemRectMin().X + ImGui.GetStyle().FramePadding.X - InputScroll));
 
-        if (clicked.At >= 0)
-            SetPendingWord(clicked.Word, clicked.At);
-        else if (Plugin.SpellCheck.WordAt(text, IndexAt(text, ImGui.GetIO().MousePos.X - origin)) is var (start, length))
+        // The box draws its own text, so a misspelling's start is already the index a correction rewrites
+        foreach (var misspelling in misspellings)
+        {
+            if (index < misspelling.Start || index >= misspelling.Start + misspelling.Length)
+                continue;
+
+            SetPendingWord(misspelling.Word(text), misspelling.Start);
+            return;
+        }
+
+        if (Plugin.SpellCheck.WordAt(text, index) is var (start, length))
             (PendingWord, PendingAt, PendingMisspelled, SynonymsShown) = (text.Substring(start, length), start, false, null);
         else
             PendingWord = string.Empty;
@@ -125,25 +135,22 @@ public sealed class SpellUnderline
         return low;
     }
 
-    // The misspelling under the pointer when checkClick, else ("", -1)
-    private (string Word, int At) UnderlineInput(string text, IReadOnlyList<Misspelling> misspellings, bool checkClick)
+    private void UnderlineInput(string text, IReadOnlyList<Misspelling> misspellings)
     {
         var min = ImGui.GetItemRectMin();
         var size = ImGui.GetItemRectSize();
         var origin = min.X + ImGui.GetStyle().FramePadding.X - InputScroll;
         var thick = Thickness * ImGuiHelpers.GlobalScale;
 
-        // Under the text, never past the box. Scaled-up small padding would hang it outside
+        // Under the text, never past the box
+        // Scaled-up small padding would hang it outside
         var y = Math.Min(
             min.Y + size.Y - ImGui.GetStyle().FramePadding.Y + Drop * ImGuiHelpers.GlobalScale,
             min.Y + size.Y - thick);
 
         var drawList = ImGui.GetWindowDrawList();
         var colour = ImGui.GetColorU32(Colour);
-        var mouseX = ImGui.GetIO().MousePos.X;
         var measured = MeasuredFor(text, misspellings);
-        var clickedWord = string.Empty;
-        var clickedAt = -1;
 
         // Cut to the frame like the glyphs, by hand rather than a clip rect pushed
         // Insetting by the padding shaves the end letters' marks
@@ -159,31 +166,20 @@ public sealed class SpellUnderline
                 continue;
 
             drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, thick);
-
-            // Latched on the click, clearing it later empties the menu as it opens
-            if (checkClick && mouseX >= left && mouseX <= right)
-            {
-                clickedWord = misspellings[i].Word(text);
-
-                // The box draws its own text, so this is already the index a correction rewrites
-                clickedAt = misspellings[i].Start;
-            }
         }
-
-        return (clickedWord, clickedAt);
     }
 
-    private (IReadOnlyList<Misspelling> For, float Font, List<(float Left, float Width)> At) Measured = ([], 0f, []);
+    // Face as well as size: another font at the same size measures differently
+    private (IReadOnlyList<Misspelling> For, ImFontPtr Face, float Size, List<(float Left, float Width)> At) Measured = ([], default, 0f, []);
 
     private List<(float Left, float Width)> MeasuredFor(string text, IReadOnlyList<Misspelling> misspellings)
     {
-        var fontSize = ImGui.GetFontSize();
-        if (ReferenceEquals(Measured.For, misspellings) && Measured.Font == fontSize)
+        var (font, fontSize) = (ImGui.GetFont(), ImGui.GetFontSize());
+        if (ReferenceEquals(Measured.For, misspellings) && Measured.Face == font && Measured.Size == fontSize)
             return Measured.At;
 
         // One pass gap by gap, not a whole prefix per misspelling: 16 ms a keystroke at 840 of them
         // Unrounded, so the running total can't drift a pixel per word the way CalcTextSize's rounding did
-        var font = ImGui.GetFont();
         float Width(ReadOnlySpan<char> span) => ImGui.CalcTextSizeA(font, fontSize, float.MaxValue, 0f, span, out _).X;
 
         List<(float Left, float Width)> at = new(misspellings.Count);
@@ -211,11 +207,13 @@ public sealed class SpellUnderline
             measuredTo = start + misspelling.Length;
         }
 
-        Measured = (misspellings, fontSize, at);
+        Measured = (misspellings, font, fontSize, at);
         return at;
     }
 
-    // A misspelling. at is -1 when unknown, falling back to first-match. A wrong index rewrites a word nobody clicked
+    // A misspelling
+    // at is -1 when unknown, falling back to first-match
+    // A wrong index rewrites a word nobody clicked
     public void SetPendingWord(string word, int at = -1)
     {
         (PendingWord, PendingAt, PendingMisspelled, SynonymsShown) = (word, at, true, null);
