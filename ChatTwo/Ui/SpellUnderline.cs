@@ -28,6 +28,11 @@ public sealed class SpellUnderline
     // Null until Synonyms is clicked, and again when it's clicked a second time
     private IReadOnlyList<string>? SynonymsShown;
 
+    // Define's Use, landing on the next frame the input draws, where its text can be written
+    private (string Word, int At, string Replacement)? Used;
+
+    private Action<string> UseFor(string word, int at) => replacement => Used = (word, at, replacement);
+
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
 
     public static void Underline(float left, float right, float bottom)
@@ -70,6 +75,12 @@ public sealed class SpellUnderline
     public void DrawForInput(ref string text)
     {
         CaptureInputState();
+
+        if (Used is var (word, at, replacement))
+        {
+            text = ReplaceWord(text, word, replacement, at);
+            Used = null;
+        }
 
         if (string.IsNullOrEmpty(text) || !Plugin.SpellCheck.IsAvailable)
             return;
@@ -232,11 +243,11 @@ public sealed class SpellUnderline
 
             foreach (var synonym in SynonymsShown)
                 if (ImGui.Selectable(synonym))
-                    text = ReplaceWord(text, PendingWord, synonym, PendingAt);
+                    Plugin.SpellCheck.Define(synonym, PendingWord, UseFor(PendingWord, PendingAt));
         }
 
         if (ImGui.Selectable("Define"))
-            Plugin.SpellCheck.Define(PendingWord);
+            Plugin.SpellCheck.Define(PendingWord, PendingWord, UseFor(PendingWord, PendingAt));
 
         ImGui.Separator();
 

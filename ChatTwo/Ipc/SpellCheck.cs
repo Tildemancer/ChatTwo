@@ -23,7 +23,7 @@ public sealed class SpellCheck : IDisposable
     private ICallGateSubscriber<string, bool> IgnoreGate { get; }
     private ICallGateSubscriber<string, int, List<int>> WordAtGate { get; }
     private ICallGateSubscriber<string, List<string>> SynonymsGate { get; }
-    private ICallGateSubscriber<string, bool> DefineGate { get; }
+    private ICallGateSubscriber<string, string, Action<string>, bool> DefineGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
     // Many, not one: a split message is checked a part at a time, so one slot means each part evicts the last
@@ -44,7 +44,7 @@ public sealed class SpellCheck : IDisposable
         IgnoreGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.Ignore");
         WordAtGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Spell.WordAt");
         SynonymsGate = Plugin.Interface.GetIpcSubscriber<string, List<string>>("TildeTools.Spell.Synonyms");
-        DefineGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.Define");
+        DefineGate = Plugin.Interface.GetIpcSubscriber<string, string, Action<string>, bool>("TildeTools.Spell.Define");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Spell.Available");
 
         AvailableGate.Subscribe(OnAvailable);
@@ -176,12 +176,12 @@ public sealed class SpellCheck : IDisposable
         }
     }
 
-    // Opens TildeTools' definition window
-    public void Define(string word)
+    // Opens TildeTools' definition window. Its Use button calls use with the word to put in original's place
+    public void Define(string word, string original, Action<string> use)
     {
         try
         {
-            DefineGate.InvokeFunc(word);
+            DefineGate.InvokeFunc(word, original, use);
         }
         catch
         {
