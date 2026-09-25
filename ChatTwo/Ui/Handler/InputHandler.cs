@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Text;
 using ChatTwo.Code;
 using ChatTwo.GameFunctions;
 using ChatTwo.GameFunctions.Types;
@@ -23,7 +22,7 @@ public class InputHandler
                                                    ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.CallbackHistory;
 
     public readonly Plugin Plugin;
-
+    // TildeTools
     public readonly SpellUnderline Spelling;
     public readonly IChatWindow MainWindow;
 
@@ -144,9 +143,7 @@ public class InputHandler
                     Plugin.CommandHelpWindow.IsOpen = false;
                     // TildeTools
                     // Kept in the box keeps the temp channel too, or the retry goes out on the base one
-                    var sent = SendHandler.SendChatBox(activeTab, ref ChatInput, ref tellSpecial);
-
-                    if (sent && activeTab.CurrentChannel.UseTempChannel)
+                    if (SendHandler.SendChatBox(activeTab, ref ChatInput, ref tellSpecial) && activeTab.CurrentChannel.UseTempChannel)
                     {
                         activeTab.CurrentChannel.ResetTempChannel();
                         Plugin.Functions.Chat.SetChannelWithExtraChat(activeTab.CurrentChannel.Channel);
@@ -184,21 +181,14 @@ public class InputHandler
                 if (context)
                 {
                     using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, normalColor);
-
                     // TildeTools
                     Spelling.DrawContextEntries(ref ChatInput);
-
                     if (ImGui.Selectable(Language.ChatLog_HideChat))
                         MainWindow.CurrentHideState = HideState.User;
                 }
             }
         }
     }
-
-    // TildeTools
-    // Box works in bytes, preview in chars. Drifts on accents
-    private static int ByteIndex(string text, int position) =>
-        Encoding.UTF8.GetByteCount(text.AsSpan(0, Math.Clamp(position, 0, text.Length)));
 
     private bool IsValidCommand(string command)
     {
@@ -217,25 +207,16 @@ public class InputHandler
         // Set the cursor pos to the user selected
         if (Plugin.InputPreview.SelectedCursorPos != -1)
         {
-            data.CursorPos = ByteIndex(ChatInput, Plugin.InputPreview.SelectedCursorPos);
-
-            // TildeTools
-            // Collapse the selection onto the cursor like a click does, or the old highlight stays
-            data.SelectionStart = data.CursorPos;
-            data.SelectionEnd = data.CursorPos;
-
+            data.CursorPos = Plugin.InputPreview.SelectedCursorPos;
             Plugin.InputPreview.SelectedCursorPos = -1;
         }
 
         // TildeTools
-        if (Plugin.InputPreview.SelectedRangeStart != -1)
+        // A preview click or drag, collapsed onto the cursor for a click so the old highlight goes
+        if (Plugin.InputPreview.SelectedRange is var (from, to))
         {
-            data.SelectionStart = ByteIndex(ChatInput, Plugin.InputPreview.SelectedRangeStart);
-            data.SelectionEnd = ByteIndex(ChatInput, Plugin.InputPreview.SelectedRangeEnd);
-            data.CursorPos = data.SelectionEnd;
-
-            Plugin.InputPreview.SelectedRangeStart = -1;
-            Plugin.InputPreview.SelectedRangeEnd = -1;
+            (data.SelectionStart, data.SelectionEnd, data.CursorPos) = (from, to, to);
+            Plugin.InputPreview.SelectedRange = null;
         }
 
         CursorPos = data.CursorPos;

@@ -121,8 +121,12 @@ public partial class InputPreview
 
     private int DragHead = -1;
 
-    public int SelectedRangeStart = -1;
-    public int SelectedRangeEnd = -1;
+    // For the box's next callback, in its bytes: a click is a range of one point
+    public (int Start, int End)? SelectedRange;
+
+    // Box works in bytes, preview in chars. Drifts on accents
+    private int ByteIndex(int position) =>
+        Encoding.UTF8.GetByteCount(InputHandler.ChatInput.AsSpan(0, Math.Clamp(position, 0, InputHandler.ChatInput.Length)));
 
     // Both in box positions, so one comparison does. The box's selection is a frame behind
     // The drag's ends are both -1 when not dragging, so its lower end tells
@@ -326,8 +330,7 @@ public partial class InputPreview
             if (DragHead >= 0 && DragHead != DragAnchor)
             {
                 // Anchor then head, not low then high: the box's caret goes where the drag ended
-                SelectedRangeStart = DragAnchor;
-                SelectedRangeEnd = DragHead;
+                SelectedRange = (ByteIndex(DragAnchor), ByteIndex(DragHead));
                 InputHandler.FocusedPreview = true;
             }
 
@@ -616,7 +619,7 @@ public partial class InputPreview
         // A press and release on the same letter is a click, as each letter's Selectable had it
         if (released && caret >= 0 && caret == PressedCaret)
         {
-            SelectedCursorPos = caret;
+            SelectedRange ??= (ByteIndex(caret), ByteIndex(caret));
             InputHandler.FocusedPreview = true;
         }
 
