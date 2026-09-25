@@ -68,14 +68,9 @@ public class SendHandler
             InputBacklogIdx = -1;
 
             // TildeTools
-            // Neither can be split: payload bytes, and the game's tell command. Over the cap the game
-            // drops them silently, so they stay in the box
-            if (Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap
-                && (tellSpecial || StartsWithTranslationCommand(trimmed)))
-            {
-                Plugin.ChatGui.PrintError("[Chat 2] That message is too long to send this way, so it was kept in the box.");
+            // Neither can be split: payload bytes, and the game's tell command
+            if ((tellSpecial || StartsWithTranslationCommand(trimmed)) && KeptForLength(trimmed))
                 return false;
-            }
 
             if (HasTranslationCommand(trimmed))
             {
@@ -115,16 +110,11 @@ public class SendHandler
 
                     // TildeTools
                     // Refused: sent anyway a long one's dropped for length and the text's gone, so keep it in the box
-                    if (tellTake == SplitTake.Refused)
+                    if (tellTake == SplitTake.Refused || KeptForLength(trimmed))
                         return false;
 
                     // ContentId 0 is a case where we can't directly send messages, so we send a /tell formatted message and let the game handle it
-                    //
-                    // An over-length tell takes the same route even when we could
-                    // send it directly, because SendTell has no way to break a
-                    // message up: it is one call carrying one message. Written as a
-                    // command instead, a splitter can cut it into several tells.
-                    if (target.ContentId == 0 || Encoding.UTF8.GetByteCount(trimmed) > Splitter.DefaultByteCap)
+                    if (target.ContentId == 0)
                     {
                         trimmed = $"/tell {target.ToTargetString()} {trimmed}";
 
@@ -170,7 +160,7 @@ public class SendHandler
             // TildeTools
             // Must not go out as is
             // False keeps the text, and the caller keeps its temp channel
-            if (take == SplitTake.Refused)
+            if (take == SplitTake.Refused || take == SplitTake.NotTaken && KeptForLength(trimmed))
                 return false;
 
             if (take == SplitTake.NotTaken)
@@ -184,6 +174,17 @@ public class SendHandler
 
         activeTab.CurrentChannel.ResetTempChannel();
         chatInput = string.Empty;
+        return true;
+    }
+
+    // TildeTools
+    // Over the cap the game drops a line silently, and the text with it, so it stays in the box
+    private static bool KeptForLength(string line)
+    {
+        if (Encoding.UTF8.GetByteCount(line) <= Splitter.DefaultByteCap)
+            return false;
+
+        Plugin.ChatGui.PrintError("[Chat 2] That message is too long to send this way, so it was kept in the box.");
         return true;
     }
 
