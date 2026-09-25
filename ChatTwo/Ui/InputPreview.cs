@@ -728,8 +728,6 @@ public partial class InputPreview : Window
         using var indent = ImRaii.PushIndent();
 
         // TildeTools
-        // The whole text's marks, back after each part
-        var previousMarks = SpellMarks;
         var previousSplitIndex = SplitIndex;
 
         try
@@ -751,7 +749,6 @@ public partial class InputPreview : Window
         }
         finally
         {
-            SpellMarks = previousMarks;
             SplitIndex = previousSplitIndex;
         }
     }
