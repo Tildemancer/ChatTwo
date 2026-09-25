@@ -8,6 +8,7 @@ public class ServerCore : IAsyncDisposable
 {
     // TildeTools
     public static HttpClient HttpClient { get; private set; } = null!;
+    // TildeTools ends
 
     public readonly Plugin Plugin;
     public readonly SendHandler SendHandler;
@@ -18,6 +19,7 @@ public class ServerCore : IAsyncDisposable
         // TildeTools
         // Made per start: DisposeAsync disposes it, and a restart in the same load reused the dead one
         HttpClient = new HttpClient();
+        // TildeTools ends
 
         Plugin = plugin;
 

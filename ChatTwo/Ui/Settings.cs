@@ -50,6 +50,7 @@ public sealed class SettingsWindow : Window
         // Hosted, the changelog's manifest is ours, so the tab would be empty and mislabelled
         if (!Hosting.IsHosted)
             Tabs.Insert(Tabs.Count - 1, new Changelog(Mutable));
+        // TildeTools ends
 
         RespectCloseHotkey = false;
         DisableWindowSounds = true;
@@ -132,6 +133,7 @@ public sealed class SettingsWindow : Window
         // TildeTools
         // Anna's and Infi's Ko-fi links live on our Credits tab
         // If we're a third party plugin of a third party tool, are we a ninth party plugin?
+        // TildeTools ends
 
         if (!save)
             return;

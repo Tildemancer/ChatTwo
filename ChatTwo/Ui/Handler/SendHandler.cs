@@ -31,7 +31,6 @@ public class SendHandler
     // TildeTools
     private (string Input, string? Name, uint World, InputChannel Channel, string Line) Composed = (string.Empty, null, 0, InputChannel.Invalid, string.Empty);
 
-    // TildeTools
     // Mirrors SendChatBox so the preview agrees with the send. Change one, change both
     public string ComposeLine(Tab activeTab, string chatInput)
     {
@@ -41,7 +40,6 @@ public class SendHandler
 
         var channel = activeTab.CurrentChannel.UseTempChannel ? activeTab.CurrentChannel.TempChannel : activeTab.CurrentChannel.Channel;
 
-        // TildeTools
         // Cached: asked every frame, and a tell's head reads the World sheet
         // At 18k characters, trimming and joining copy 36 KB each
         if ((chatInput, target?.Name, target?.World ?? 0, channel) == (Composed.Input, Composed.Name, Composed.World, Composed.Channel))
@@ -55,9 +53,9 @@ public class SendHandler
         return line;
     }
 
-    // TildeTools
     // False when the text stays in the box, so the caller keeps the temp channel for the retry
     public bool SendChatBox(Tab activeTab, ref string chatInput, ref bool tellSpecial)
+    // TildeTools ends
     {
         if (!string.IsNullOrWhiteSpace(chatInput))
         {
@@ -69,6 +67,7 @@ public class SendHandler
             // Neither can be split: payload bytes, and the game's tell command
             if ((tellSpecial || Splitter.StartsWithTranslationCommand(trimmed)) && Splitter.KeptForLength(trimmed))
                 return false;
+            // TildeTools ends
 
             if (HasTranslationCommand(trimmed))
             {
@@ -106,9 +105,9 @@ public class SendHandler
                         return true;
                     }
 
-                    // TildeTools
                     if (tellTake == SplitTake.Refused || Splitter.KeptForLength(trimmed))
                         return false;
+                    // TildeTools ends
 
                     // ContentId 0 is a case where we can't directly send messages, so we send a /tell formatted message and let the game handle it
                     if (target.ContentId == 0)
@@ -153,7 +152,6 @@ public class SendHandler
             // Every line, it declines one that fits with no break marker
             var take = Plugin.Splitter.Offer(trimmed);
 
-            // TildeTools
             // Must not go out as is
             // False keeps the text, and the caller keeps its temp channel
             if (take == SplitTake.Refused || take == SplitTake.NotTaken && Splitter.KeptForLength(trimmed))
@@ -166,6 +164,7 @@ public class SendHandler
 
                 ChatBox.SendMessageUnsafe(bytes);
             }
+            // TildeTools ends
         }
 
         activeTab.CurrentChannel.ResetTempChannel();

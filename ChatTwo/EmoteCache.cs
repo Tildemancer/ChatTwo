@@ -73,6 +73,7 @@ public static class EmoteCache
             // TildeTools
             // Debug, not Information: the whole emote list in the log every start
             Plugin.Log.Debug(jsonString);
+            // TildeTools ends
             foreach (var emote in JsonSerializer.Deserialize<Emote[]>(jsonString)!)
                 if (!NotWorking.Contains(emote.Code))
                     Cache.TryAdd(emote.Code, emote);
@@ -96,6 +97,7 @@ public static class EmoteCache
         EmoteImages.Clear();
         SortedCodeArray = [];
         State = LoadingState.Unloaded;
+        // TildeTools ends
     }
 
     public static bool Exists(string code)

@@ -55,6 +55,7 @@ public sealed class About : ISettingsTab
         ImGui.TextUnformatted(Language.Options_About_Discord);
         ImGui.SameLine();
         ImGui.TextColored(ImGuiColors.ParsedGold, Hosting.IsHosted ? "@tildemancer" : "@infi");
+        // TildeTools ends
 
         ImGui.TextUnformatted(Language.Options_About_Version);
         ImGui.SameLine();
@@ -82,6 +83,7 @@ public sealed class About : ISettingsTab
             if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "githubIssues"))
                 Dalamud.Utility.Util.OpenLink("https://github.com/Infiziert90/ChatTwo/issues");
         }
+        // TildeTools ends
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
@@ -121,6 +123,7 @@ public sealed class About : ISettingsTab
             if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "crowdin"))
                 Dalamud.Utility.Util.OpenLink("https://crowdin.com/project/chattwo");
         }
+        // TildeTools ends
 
         ImGui.Spacing();
 

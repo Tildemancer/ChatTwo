@@ -74,6 +74,7 @@ public sealed class PayloadHandler
 
         // TildeTools
         WordLookup.DrawDefine(InputHandler.Plugin.SpellCheck);
+        // TildeTools ends
 
         var drawn = false;
         switch (payload)

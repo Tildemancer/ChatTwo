@@ -26,6 +26,7 @@ public partial class InputPreview : Window
     // TildeTools
     private string LastInput = string.Empty;
     private string LastTrimmed = string.Empty;
+    // TildeTools ends
     private Message? PreviewMessage;
 
     private int CursorPosition;
@@ -64,6 +65,7 @@ public partial class InputPreview : Window
             // TildeTools
             // Height was just zeroed, so remeasure even for the same text
             MeasuredFor = null;
+            // TildeTools ends
             PreviewMessage = null;
             HasEvaluation = false;
 
@@ -79,12 +81,12 @@ public partial class InputPreview : Window
             // Past the cap only the parts are drawn, or just the header when the splitter declines
             // Parsed, it cost 28-35 ms at 18k characters: ReplaceWithPayload copies bytes[i..] at every byte
             PreviewMessage = BuildMessage(Encoding.UTF8.GetByteCount(LastTrimmed) > Ipc.Splitter.DefaultByteCap ? string.Empty : LastTrimmed);
+            // TildeTools ends
         }
 
         // TildeTools
         UpdateSplitParts();
 
-        // TildeTools
         // A trailing space is the checker's done-signal, and Trim would throw it away
         // Split, each part marks itself: the whole text's marks were a 144 KB array a keystroke at 18k, never drawn
         if (SplitMessages is null)
@@ -92,8 +94,8 @@ public partial class InputPreview : Window
         else
             SpellMarks = [];
 
-        // TildeTools
         HasEvaluation = !Plugin.Config.OnlyPreviewIf || PreviewMessage.Content.Count > 1 || SplitHasEvaluation;
+        // TildeTools ends
     }
 
     public bool IsDrawable => ValidDraw && HasEvaluation;
@@ -112,6 +114,7 @@ public partial class InputPreview : Window
         // TildeTools
         var width = PreviewWidth > 0 ? PreviewWidth : size.X;
         Size = new Vector2(width, PreviewHeight);
+        // TildeTools ends
 
         var y = Plugin.Config.PreviewPosition switch
         {
@@ -122,6 +125,7 @@ public partial class InputPreview : Window
 
         // TildeTools
         Position = KeepOnScreen(pos with { Y = y }, pos, size.X, width);
+        // TildeTools ends
         PositionCondition = ImGuiCond.Always;
     }
 
@@ -226,6 +230,7 @@ public partial class InputPreview : Window
 
         // TildeTools
         DrawWords(text.Content, handler);
+        // TildeTools ends
         ImGui.NewLine();
     }
 }

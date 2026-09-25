@@ -69,6 +69,7 @@ public static class ImGuiUtil
 
             // TildeTools
             Ui.WordLookup.Watch(text, textEnd);
+            // TildeTools ends
 
             PostPayload(chunk, handler);
 

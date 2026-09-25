@@ -24,6 +24,7 @@ public class InputHandler
     public readonly Plugin Plugin;
     // TildeTools
     public readonly SpellUnderline Spelling;
+    // TildeTools ends
     public readonly IChatWindow MainWindow;
 
     public readonly SendHandler SendHandler;
@@ -62,11 +63,13 @@ public class InputHandler
 
     // TildeTools
     public string ComposedLine { get; private set; } = string.Empty;
+    // TildeTools ends
 
     public void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial)
     {
         // TildeTools
         ComposedLine = SendHandler.ComposeLine(activeTab, ChatInput);
+        // TildeTools ends
 
         var inputType = activeTab.CurrentChannel.UseTempChannel
             ? activeTab.CurrentChannel.TempChannel.ToChatType()
@@ -111,8 +114,8 @@ public class InputHandler
                 // 500 unless a splitter raises it, then cutting it up is the splitter's job
                 ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, Plugin.Splitter.InputByteCap, flags, Callback);
 
-                // TildeTools
                 Spelling.DrawForInput(ref ChatInput);
+                // TildeTools ends
             }
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;
@@ -144,6 +147,7 @@ public class InputHandler
                     // TildeTools
                     // Kept in the box keeps the temp channel too, or the retry goes out on the base one
                     if (SendHandler.SendChatBox(activeTab, ref ChatInput, ref tellSpecial) && activeTab.CurrentChannel.UseTempChannel)
+                    // TildeTools ends
                     {
                         activeTab.CurrentChannel.ResetTempChannel();
                         Plugin.Functions.Chat.SetChannelWithExtraChat(activeTab.CurrentChannel.Channel);
@@ -170,6 +174,7 @@ public class InputHandler
                 // TildeTools
                 // Not while text waits for that target: a refused send, a preview click or a spelling menu took the focus
                 if (activeTab.CurrentChannel.UseTempChannel && ChatInput.Length == 0)
+                // TildeTools ends
                 {
                     activeTab.CurrentChannel.ResetTempChannel();
                     Plugin.Functions.Chat.SetChannelWithExtraChat(Plugin.CurrentTab.CurrentChannel.Channel);
@@ -183,6 +188,7 @@ public class InputHandler
                     using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, normalColor);
                     // TildeTools
                     Spelling.DrawContextEntries(ref ChatInput);
+                    // TildeTools ends
                     if (ImGui.Selectable(Language.ChatLog_HideChat))
                         MainWindow.CurrentHideState = HideState.User;
                 }
@@ -218,6 +224,7 @@ public class InputHandler
             (data.SelectionStart, data.SelectionEnd, data.CursorPos) = (from, to, to);
             Plugin.InputPreview.SelectedRange = null;
         }
+        // TildeTools ends
 
         CursorPos = data.CursorPos;
         if (data.EventFlag == ImGuiInputTextFlags.CallbackCompletion)
