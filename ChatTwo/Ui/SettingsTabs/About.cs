@@ -63,7 +63,7 @@ public sealed class About : ISettingsTab
         ImGuiHelpers.ScaledDummy(10.0f);
 
         // TildeTools
-        // No support links on a modified build: upstream can't reproduce our bugs
+        // No support links on a modified build
         if (Hosting.IsHosted)
         {
             ImGui.TextColored(ImGuiColors.DalamudOrange, "This is a modified build running inside another plugin. Please do not report problems with it to Chat 2's maintainers, they did not write these changes.");
@@ -86,7 +86,7 @@ public sealed class About : ISettingsTab
         ImGuiHelpers.ScaledDummy(10.0f);
 
         // TildeTools
-        // Translations go upstream, which can't use them for strings we changed
+        // No translation link on a modified build
         if (Hosting.IsHosted)
         {
             ImGui.TextUnformatted("Chat 2 was written by");
