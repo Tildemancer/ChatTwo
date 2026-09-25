@@ -19,8 +19,7 @@ public sealed class SpellUnderline
 
     private string PendingWord = string.Empty;
 
-    // Only the position tells two identical words apart
-    // Without it the fourth "teh" fixed the first
+    // Only the position tells two identical words apart. Without it the fourth "teh" fixed the first
     private int PendingAt = -1;
 
     // Corrections only for a misspelling, any word gets Synonyms and Define
@@ -142,8 +141,7 @@ public sealed class SpellUnderline
         var origin = min.X + ImGui.GetStyle().FramePadding.X - InputScroll;
         var thick = Thickness * ImGuiHelpers.GlobalScale;
 
-        // Under the text, never past the box
-        // Scaled-up small padding would hang it outside
+        // Under the text, never past the box. Scaled-up small padding would hang it outside
         var y = Math.Min(
             min.Y + size.Y - ImGui.GetStyle().FramePadding.Y + Drop * ImGuiHelpers.GlobalScale,
             min.Y + size.Y - thick);

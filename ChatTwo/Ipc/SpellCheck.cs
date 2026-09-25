@@ -29,8 +29,7 @@ public sealed class SpellCheck : IDisposable
     // Many, not one: a split message is checked a part at a time, so one slot means each part evicts the last
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
 
-    // Moves when answers change (new dictionary, word added or ignored)
-    // Drop remembered results when it does
+    // Moves when answers change (new dictionary, word added or ignored). Drop remembered results when it does
     public int Generation { get; private set; }
 
     // Every part of a 32000-byte message, about 67, with room over
@@ -110,8 +109,7 @@ public sealed class SpellCheck : IDisposable
         Generation++;
     }
 
-    // Until restart, without learning it
-    // Filtered in the checker, so every box agrees
+    // Until restart, without learning it. Filtered in the checker, so every box agrees
     public void Ignore(string word)
     {
         Try(() => IgnoreGate.InvokeFunc(word), false);
