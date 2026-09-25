@@ -29,7 +29,7 @@ public class SendHandler
     }
 
     // TildeTools
-    private (string Input, string Head, string Line) Composed = (string.Empty, string.Empty, string.Empty);
+    private (string Input, string? Name, uint World, InputChannel Channel, string Line) Composed = (string.Empty, null, 0, InputChannel.Invalid, string.Empty);
 
     // TildeTools
     // Mirrors SendChatBox so the preview agrees with the send. Change one, change both
@@ -39,21 +39,19 @@ public class SendHandler
             ? activeTab.TellTarget
             : activeTab.CurrentChannel.TempTellTarget ?? activeTab.CurrentChannel.TellTarget;
 
-        var head = target != null
-            ? $"/tell {target.ToTargetString()}"
-            : activeTab.CurrentChannel.UseTempChannel
-                ? activeTab.CurrentChannel.TempChannel.Prefix()
-                : activeTab.CurrentChannel.Channel.Prefix();
+        var channel = activeTab.CurrentChannel.UseTempChannel ? activeTab.CurrentChannel.TempChannel : activeTab.CurrentChannel.Channel;
 
         // TildeTools
-        // Asked every frame, and trimming and joining the same line again is a 36 KB copy each at 18k characters
-        if (chatInput == Composed.Input && head == Composed.Head)
+        // Asked every frame, so the head is built only when its inputs change: a tell's reads the World sheet
+        // Trimming and joining the same line again is a 36 KB copy each at 18k characters
+        if ((chatInput, target?.Name, target?.World ?? 0, channel) == (Composed.Input, Composed.Name, Composed.World, Composed.Channel))
             return Composed.Line;
 
+        var head = target != null ? $"/tell {target.ToTargetString()}" : channel.Prefix();
         var trimmed = chatInput.Trim();
         var line = trimmed.Length == 0 || trimmed.StartsWith('/') ? trimmed : $"{head} {trimmed}";
 
-        Composed = (chatInput, head, line);
+        Composed = (chatInput, target?.Name, target?.World ?? 0, channel, line);
         return line;
     }
 
