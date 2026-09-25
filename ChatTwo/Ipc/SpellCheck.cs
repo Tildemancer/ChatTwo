@@ -21,6 +21,9 @@ public sealed class SpellCheck : IDisposable
     private ICallGateSubscriber<string, List<string>?> SuggestGate { get; }
     private ICallGateSubscriber<string, bool> AddGate { get; }
     private ICallGateSubscriber<string, bool> IgnoreGate { get; }
+    private ICallGateSubscriber<string, int, List<int>> WordAtGate { get; }
+    private ICallGateSubscriber<string, List<string>> SynonymsGate { get; }
+    private ICallGateSubscriber<string, bool> DefineGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
     // Many, not one: a split message is checked a part at a time, so one slot means each part evicts the last
@@ -39,6 +42,9 @@ public sealed class SpellCheck : IDisposable
         SuggestGate = Plugin.Interface.GetIpcSubscriber<string, List<string>?>("TildeTools.Spell.Suggest");
         AddGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.AddToDictionary");
         IgnoreGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.Ignore");
+        WordAtGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Spell.WordAt");
+        SynonymsGate = Plugin.Interface.GetIpcSubscriber<string, List<string>>("TildeTools.Spell.Synonyms");
+        DefineGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.Define");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Spell.Available");
 
         AvailableGate.Subscribe(OnAvailable);
@@ -143,6 +149,43 @@ public sealed class SpellCheck : IDisposable
 
         Cached.Clear();
         Generation++;
+    }
+
+    // The word around index as the spellchecker reads words, so any word can be looked up
+    public (int Start, int Length)? WordAt(string text, int index)
+    {
+        try
+        {
+            return WordAtGate.InvokeFunc(text, index) is [var start, var length] ? (start, length) : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public IReadOnlyList<string> Synonyms(string word)
+    {
+        try
+        {
+            return SynonymsGate.InvokeFunc(word);
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    // Opens TildeTools' definition window
+    public void Define(string word)
+    {
+        try
+        {
+            DefineGate.InvokeFunc(word);
+        }
+        catch
+        {
+        }
     }
 
     public void Dispose()

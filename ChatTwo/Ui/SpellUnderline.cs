@@ -4,6 +4,7 @@ using System.Numerics;
 using ChatTwo.Ipc;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 
 namespace ChatTwo.Ui;
 
@@ -20,6 +21,12 @@ public sealed class SpellUnderline
 
     // Only the position tells two identical words apart. Without it the fourth "teh" fixed the first
     private int PendingAt = -1;
+
+    // Corrections only for a misspelling, any word gets Synonyms and Define
+    private bool PendingMisspelled;
+
+    // Null until Synonyms is clicked, and again when it's clicked a second time
+    private IReadOnlyList<string>? SynonymsShown;
 
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
 
@@ -67,17 +74,44 @@ public sealed class SpellUnderline
         if (string.IsNullOrEmpty(text) || !Plugin.SpellCheck.IsAvailable)
             return;
 
+        var rightClicked = ImGui.IsItemHovered() && ImGui.IsMouseClicked(ImGuiMouseButton.Right);
         var misspellings = Plugin.SpellCheck.Check(text);
-        if (misspellings.Count == 0)
-            return;
-
-        var hovered = ImGui.IsItemHovered();
-        var rightClicked = ImGui.IsMouseClicked(ImGuiMouseButton.Right);
-        var clicked = UnderlineInput(text, misspellings, hovered && rightClicked);
+        var clicked = misspellings.Count > 0 ? UnderlineInput(text, misspellings, rightClicked) : (Word: string.Empty, At: -1);
 
         // Only for a click in this box. The preview draws first, so a click latched there got wiped here
-        if (rightClicked && hovered)
-            (PendingWord, PendingAt) = clicked;
+        if (!rightClicked)
+            return;
+
+        var origin = ImGui.GetItemRectMin().X + ImGui.GetStyle().FramePadding.X - InputScroll;
+
+        if (clicked.At >= 0)
+            SetPendingWord(clicked.Word, clicked.At);
+        else if (Plugin.SpellCheck.WordAt(text, IndexAt(text, ImGui.GetIO().MousePos.X - origin)) is var (start, length))
+            (PendingWord, PendingAt, PendingMisspelled, SynonymsShown) = (text.Substring(start, length), start, false, null);
+        else
+            PendingWord = string.Empty;
+    }
+
+    // The character under x, -1 left of the text: the longest prefix no wider than x ends just before it
+    private static int IndexAt(string text, float x)
+    {
+        if (x < 0)
+            return -1;
+
+        var (font, size) = (ImGui.GetFont(), ImGui.GetFontSize());
+        var (low, high) = (0, text.Length);
+
+        while (low < high)
+        {
+            var mid = (low + high + 1) / 2;
+
+            if (ImGui.CalcTextSizeA(font, size, float.MaxValue, 0f, text.AsSpan(0, mid), out _).X <= x)
+                low = mid;
+            else
+                high = mid - 1;
+        }
+
+        return low;
     }
 
     // The misspelling under the pointer when checkClick, else ("", -1)
@@ -170,11 +204,10 @@ public sealed class SpellUnderline
         return at;
     }
 
-    // at is -1 when unknown, falling back to first-match. A wrong index rewrites a word nobody clicked
+    // A misspelling. at is -1 when unknown, falling back to first-match. A wrong index rewrites a word nobody clicked
     public void SetPendingWord(string word, int at = -1)
     {
-        PendingWord = word;
-        PendingAt = at;
+        (PendingWord, PendingAt, PendingMisspelled, SynonymsShown) = (word, at, true, null);
     }
 
     public void DrawContextEntries(ref string text)
@@ -184,6 +217,31 @@ public sealed class SpellUnderline
 
         KeepOnScreen();
         ImGui.TextDisabled(PendingWord);
+
+        if (ImGui.Selectable("Synonyms", false, ImGuiSelectableFlags.DontClosePopups))
+            SynonymsShown = SynonymsShown is null ? Plugin.SpellCheck.Synonyms(PendingWord) : null;
+
+        if (SynonymsShown is not null)
+        {
+            // Its own ids, a synonym can share a label with a correction
+            using var id = ImRaii.PushId("synonyms");
+            using var indent = ImRaii.PushIndent();
+
+            if (SynonymsShown.Count == 0)
+                ImGui.TextDisabled("None found");
+
+            foreach (var synonym in SynonymsShown)
+                if (ImGui.Selectable(synonym))
+                    text = ReplaceWord(text, PendingWord, synonym, PendingAt);
+        }
+
+        if (ImGui.Selectable("Define"))
+            Plugin.SpellCheck.Define(PendingWord);
+
+        ImGui.Separator();
+
+        if (!PendingMisspelled)
+            return;
 
         var learn = ImGui.Selectable("Add to dictionary");
         var ignore = ImGui.Selectable("Ignore for now");
