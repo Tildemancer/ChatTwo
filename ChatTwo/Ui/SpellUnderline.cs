@@ -82,7 +82,8 @@ public sealed class SpellUnderline
             Used = null;
         }
 
-        if (string.IsNullOrEmpty(text) || !Plugin.SpellCheck.IsAvailable)
+        // An empty box still takes the right-click below, so the menu can't bring back the last word
+        if (!Plugin.SpellCheck.IsAvailable)
             return;
 
         var misspellings = Plugin.SpellCheck.Check(text);
@@ -91,7 +92,8 @@ public sealed class SpellUnderline
 
         // Only for a click in this box
         // The preview draws first, so a click latched there got wiped here
-        if (!ImGui.IsItemHovered() || !ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+        // AllowWhenBlockedByPopup: the menu, still open on the press, reopens on the release with whatever this latched
+        if (!ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup) || !ImGui.IsMouseClicked(ImGuiMouseButton.Right))
             return;
 
         var index = IndexAt(text, ImGui.GetIO().MousePos.X - (ImGui.GetItemRectMin().X + ImGui.GetStyle().FramePadding.X - InputScroll));
