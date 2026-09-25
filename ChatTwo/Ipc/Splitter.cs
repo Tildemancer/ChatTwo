@@ -2,6 +2,7 @@
 
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Ipc.Exceptions;
+using static ChatTwo.Ipc.SpellCheck;
 
 namespace ChatTwo.Ipc;
 
@@ -23,143 +24,56 @@ public sealed class Splitter : IDisposable
 
     private const int RequiredApiVersion = 1;
 
-    private ICallGateSubscriber<int> ApiVersionGate { get; }
-    private ICallGateSubscriber<int> InputByteCapGate { get; }
-    private ICallGateSubscriber<string, int, bool> SendLineGate { get; }
-    private ICallGateSubscriber<string, int, int> SendLineStatusGate { get; }
-    private ICallGateSubscriber<string, int, List<string>> SplitLineGate { get; }
-    private ICallGateSubscriber<string, int, List<int>> SplitSpansGate { get; }
-    private ICallGateSubscriber<string, int, List<int>> SplitSourcesGate { get; }
-    private ICallGateSubscriber<string, int, int> PostingMsGate { get; }
-    private ICallGateSubscriber<object?> AvailableGate { get; }
-
-    private int CachedCap { get; set; } = DefaultByteCap;
+    private readonly ICallGateSubscriber<int> ApiVersionGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.ApiVersion");
+    private readonly ICallGateSubscriber<int> InputByteCapGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.InputByteCap");
+    private readonly ICallGateSubscriber<string, int, bool> SendLineGate = Plugin.Interface.GetIpcSubscriber<string, int, bool>("TildeTools.Split.SendLine");
+    private readonly ICallGateSubscriber<string, int, int> SendLineStatusGate = Plugin.Interface.GetIpcSubscriber<string, int, int>("TildeTools.Split.SendLineStatus");
+    private readonly ICallGateSubscriber<string, int, List<string>> SplitLineGate = Plugin.Interface.GetIpcSubscriber<string, int, List<string>>("TildeTools.Split.SplitLine");
+    private readonly ICallGateSubscriber<string, int, List<int>> SplitSpansGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySpans");
+    private readonly ICallGateSubscriber<string, int, List<int>> SplitSourcesGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySources");
+    private readonly ICallGateSubscriber<string, int, int> PostingMsGate = Plugin.Interface.GetIpcSubscriber<string, int, int>("TildeTools.Split.PostingMs");
+    private readonly ICallGateSubscriber<object?> AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Split.Available");
 
     public Splitter()
     {
-        ApiVersionGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.ApiVersion");
-        InputByteCapGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.InputByteCap");
-        SendLineGate = Plugin.Interface.GetIpcSubscriber<string, int, bool>("TildeTools.Split.SendLine");
-        SendLineStatusGate = Plugin.Interface.GetIpcSubscriber<string, int, int>("TildeTools.Split.SendLineStatus");
-        SplitLineGate = Plugin.Interface.GetIpcSubscriber<string, int, List<string>>("TildeTools.Split.SplitLine");
-        SplitSpansGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySpans");
-        SplitSourcesGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Split.SplitLineBodySources");
-        PostingMsGate = Plugin.Interface.GetIpcSubscriber<string, int, int>("TildeTools.Split.PostingMs");
-        AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Split.Available");
-
         AvailableGate.Subscribe(Refresh);
-
         Refresh();
     }
 
-    public int InputByteCap => CachedCap;
-
-    public void Refresh()
-    {
-        CachedCap = QueryCap();
-        Generation++;
-    }
-
-    // Bumped on every refresh, so a cached split knows the settings behind it changed
-    public int Generation { get; private set; }
-
-    // How long its parts take to go out, 0 when the splitter's too old to say
-    public int PostingMs(string line)
-    {
-        try
-        {
-            return PostingMsGate.InvokeFunc(line, DefaultByteCap);
-        }
-        catch
-        {
-            return 0;
-        }
-    }
-
-    private int QueryCap()
-    {
-        try
-        {
-            if (ApiVersionGate.InvokeFunc() < RequiredApiVersion)
-            {
-                IsAvailable = false;
-                return DefaultByteCap;
-            }
-
-            IsAvailable = true;
-            var cap = InputByteCapGate.InvokeFunc();
-
-            return cap < DefaultByteCap ? DefaultByteCap : cap;
-        }
-        catch
-        {
-            IsAvailable = false;
-            return DefaultByteCap;
-        }
-    }
+    public int InputByteCap { get; private set; } = DefaultByteCap;
 
     // Recorded, not inferred from the cap: a splitter reporting exactly 500 would look absent
     public bool IsAvailable { get; private set; }
 
+    // Bumped on every refresh, so a cached split knows the settings behind it changed
+    public int Generation { get; private set; }
+
+    private void Refresh()
+    {
+        var cap = Try<int?>(() => ApiVersionGate.InvokeFunc() >= RequiredApiVersion ? InputByteCapGate.InvokeFunc() : null, null);
+        (IsAvailable, InputByteCap) = (cap != null, Math.Max(cap ?? DefaultByteCap, DefaultByteCap));
+        Generation++;
+    }
+
+    // How long its parts take to go out, 0 when the splitter's too old to say
+    public int PostingMs(string line) => Try(() => PostingMsGate.InvokeFunc(line, DefaultByteCap), 0);
+
     // Outside the span is the splitter's own
     // Empty when it's too old to say
+    // An older splitter lacks the gate. Mark everything, as before
     public List<(int Start, int Length)> BodySpans(string line)
     {
-        try
-        {
-            var flat = SplitSpansGate.InvokeFunc(line, DefaultByteCap);
-            if (flat is null || flat.Count % 2 != 0)
-                return [];
-
-            var spans = new List<(int, int)>(flat.Count / 2);
+        List<(int, int)> spans = [];
+        if (Try<List<int>?>(() => SplitSpansGate.InvokeFunc(line, DefaultByteCap), null) is { } flat && flat.Count % 2 == 0)
             for (var i = 0; i + 1 < flat.Count; i += 2)
                 spans.Add((flat[i], flat[i + 1]));
 
-            return spans;
-        }
-        catch
-        {
-            // An older splitter lacks the gate. Mark everything, as before
-            return [];
-        }
+        return spans;
     }
 
-    public List<int> BodySources(string line)
-    {
-        try
-        {
-            return SplitSourcesGate.InvokeFunc(line, DefaultByteCap) ?? [];
-        }
-        catch
-        {
-            return [];
-        }
-    }
+    public List<int> BodySources(string line) => Try<List<int>?>(() => SplitSourcesGate.InvokeFunc(line, DefaultByteCap), null) ?? [];
 
-    public List<string>? Split(string line)
-    {
-        try
-        {
-            var parts = SplitLineGate.InvokeFunc(line, DefaultByteCap);
-            return parts is { Count: > 0 } ? parts : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    public bool TrySend(string line)
-    {
-        try
-        {
-            return SendLineGate.InvokeFunc(line, DefaultByteCap);
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    public List<string>? Split(string line) => Try<List<string>?>(() => SplitLineGate.InvokeFunc(line, DefaultByteCap), null);
 
     // Yes/no can't tell "not mine" from "refused", and we sent a refused line ourselves.
     // An older splitter's no still means send it
@@ -167,9 +81,7 @@ public sealed class Splitter : IDisposable
     {
         try
         {
-            var status = SendLineStatusGate.InvokeFunc(line, DefaultByteCap);
-
-            return status switch
+            return SendLineStatusGate.InvokeFunc(line, DefaultByteCap) switch
             {
                 1 => SplitTake.Queued,
                 2 => SplitTake.Refused,
@@ -179,7 +91,7 @@ public sealed class Splitter : IDisposable
         catch (IpcNotReadyError)
         {
             // A splitter from before SendLineStatus, yes/no is all it has
-            return TrySend(line) ? SplitTake.Queued : SplitTake.NotTaken;
+            return Try(() => SendLineGate.InvokeFunc(line, DefaultByteCap), false) ? SplitTake.Queued : SplitTake.NotTaken;
         }
         catch (Exception ex)
         {
@@ -190,8 +102,5 @@ public sealed class Splitter : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        AvailableGate.Unsubscribe(Refresh);
-    }
+    public void Dispose() => AvailableGate.Unsubscribe(Refresh);
 }

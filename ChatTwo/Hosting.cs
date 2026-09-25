@@ -41,18 +41,10 @@ public static class Hosting
         {
             // Whole name, not ours first: a runtime generic can take our types as arguments
             var qualified = assemblyName == null ? typeName : $"{typeName}, {assemblyName}";
-
-            var resolved = Type.GetType(qualified, ResolveAssembly, ResolveType, throwOnError: false);
-            if (resolved != null)
-                return resolved;
-
-            return base.BindToType(assemblyName, typeName);
+            return Type.GetType(qualified, ResolveAssembly, ResolveType, throwOnError: false) ?? base.BindToType(assemblyName, typeName);
         }
 
-        private static Assembly? ResolveAssembly(AssemblyName name) =>
-            string.Equals(name.Name, OurName, StringComparison.Ordinal)
-                ? Ours
-                : Assembly.Load(name);
+        private static Assembly? ResolveAssembly(AssemblyName name) => name.Name == OurName ? Ours : Assembly.Load(name);
 
         private static Type? ResolveType(Assembly? assembly, string name, bool ignoreCase) =>
             assembly == null
@@ -113,10 +105,8 @@ public static class Hosting
         try
         {
             var path = ConfigPath;
-            var json = JsonConvert.SerializeObject(config, Formatting.Indented, SerializerSettings);
-
             var temporary = path + ".tmp";
-            File.WriteAllText(temporary, json);
+            File.WriteAllText(temporary, JsonConvert.SerializeObject(config, Formatting.Indented, SerializerSettings));
 
             if (File.Exists(path))
                 File.Replace(temporary, path, path + ".bak", ignoreMetadataErrors: true);

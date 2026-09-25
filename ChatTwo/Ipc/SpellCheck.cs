@@ -16,15 +16,15 @@ public sealed class SpellCheck : IDisposable
 {
     private const int RequiredApiVersion = 1;
 
-    private ICallGateSubscriber<int> ApiVersionGate { get; }
-    private ICallGateSubscriber<string, List<int>> CheckGate { get; }
-    private ICallGateSubscriber<string, List<string>?> SuggestGate { get; }
-    private ICallGateSubscriber<string, bool> AddGate { get; }
-    private ICallGateSubscriber<string, bool> IgnoreGate { get; }
-    private ICallGateSubscriber<string, int, List<int>> WordAtGate { get; }
-    private ICallGateSubscriber<string, List<string>> SynonymsGate { get; }
-    private ICallGateSubscriber<string, string, Action<string>?, bool> DefineGate { get; }
-    private ICallGateSubscriber<object?> AvailableGate { get; }
+    private readonly ICallGateSubscriber<int> ApiVersionGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Spell.ApiVersion");
+    private readonly ICallGateSubscriber<string, List<int>> CheckGate = Plugin.Interface.GetIpcSubscriber<string, List<int>>("TildeTools.Spell.Check");
+    private readonly ICallGateSubscriber<string, List<string>?> SuggestGate = Plugin.Interface.GetIpcSubscriber<string, List<string>?>("TildeTools.Spell.Suggest");
+    private readonly ICallGateSubscriber<string, bool> AddGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.AddToDictionary");
+    private readonly ICallGateSubscriber<string, bool> IgnoreGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.Ignore");
+    private readonly ICallGateSubscriber<string, int, List<int>> WordAtGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Spell.WordAt");
+    private readonly ICallGateSubscriber<string, List<string>> SynonymsGate = Plugin.Interface.GetIpcSubscriber<string, List<string>>("TildeTools.Spell.Synonyms");
+    private readonly ICallGateSubscriber<string, string, Action<string>?, bool> DefineGate = Plugin.Interface.GetIpcSubscriber<string, string, Action<string>?, bool>("TildeTools.Spell.Define");
+    private readonly ICallGateSubscriber<object?> AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Spell.Available");
 
     // Many, not one: a split message is checked a part at a time, so one slot means each part evicts the last
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
@@ -37,31 +37,18 @@ public sealed class SpellCheck : IDisposable
 
     public SpellCheck()
     {
-        ApiVersionGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Spell.ApiVersion");
-        CheckGate = Plugin.Interface.GetIpcSubscriber<string, List<int>>("TildeTools.Spell.Check");
-        SuggestGate = Plugin.Interface.GetIpcSubscriber<string, List<string>?>("TildeTools.Spell.Suggest");
-        AddGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.AddToDictionary");
-        IgnoreGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.Ignore");
-        WordAtGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Spell.WordAt");
-        SynonymsGate = Plugin.Interface.GetIpcSubscriber<string, List<string>>("TildeTools.Spell.Synonyms");
-        DefineGate = Plugin.Interface.GetIpcSubscriber<string, string, Action<string>?, bool>("TildeTools.Spell.Define");
-        AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Spell.Available");
-
         AvailableGate.Subscribe(OnAvailable);
-        Refresh();
+        OnAvailable();
     }
 
     public bool IsAvailable { get; private set; }
 
     private void OnAvailable()
     {
-        Refresh();
-
+        IsAvailable = Try(() => ApiVersionGate.InvokeFunc() >= RequiredApiVersion, false);
         Cached.Clear();
         Generation++;
     }
-
-    public void Refresh() => IsAvailable = Try(() => ApiVersionGate.InvokeFunc() >= RequiredApiVersion, false);
 
     private bool ReportedState;
 
@@ -84,17 +71,12 @@ public sealed class SpellCheck : IDisposable
 
         var result = Cached[text] = [];
 
-        try
-        {
-            // Flattened: start, length, start, length
-            var flat = CheckGate.InvokeFunc(text);
+        // Flattened: start, length, start, length
+        if (Try<List<int>?>(() => CheckGate.InvokeFunc(text), null) is { } flat)
             for (var i = 0; i + 1 < flat.Count; i += 2)
                 result.Add(new Misspelling(flat[i], flat[i + 1]));
-        }
-        catch
-        {
+        else
             IsAvailable = false;
-        }
 
         return result;
     }
@@ -138,8 +120,8 @@ public sealed class SpellCheck : IDisposable
     // Its Use button calls use with the word to put in original's place, none when use is null
     public void Define(string word, string original, Action<string>? use) => Try(() => DefineGate.InvokeFunc(word, original, use), false);
 
-    // A call that can't throw here: TildeTools may be unloading, or its Spelling off
-    private static T Try<T>(Func<T> call, T failed)
+    // A call that can't throw here: TildeTools may be unloading, or the module behind the gate off
+    internal static T Try<T>(Func<T> call, T failed)
     {
         try
         {
@@ -151,8 +133,5 @@ public sealed class SpellCheck : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        AvailableGate.Unsubscribe(OnAvailable);
-    }
+    public void Dispose() => AvailableGate.Unsubscribe(OnAvailable);
 }
