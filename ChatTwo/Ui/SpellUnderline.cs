@@ -23,19 +23,6 @@ public sealed class SpellUnderline
 
     public SpellUnderline(Plugin plugin) => Plugin = plugin;
 
-    // Off the input's own state, not guessed from the caret, which only pins the scroll at the
-    // line's end. No state until clicked into, and unfocused draws from the start
-    private static unsafe float ScrollOffset()
-    {
-        // The state outlives focus, but only an active box draws scrolled or shows its selection
-        if (!ImGui.IsItemActive())
-            return 0f;
-
-        var state = ImGuiP.GetInputTextState(ImGuiP.GetItemID());
-
-        return state.IsNull ? 0f : state.ScrollX;
-    }
-
     public static void Underline(float left, float right, float bottom)
     {
         var y = bottom - Drop * ImGuiHelpers.GlobalScale;
@@ -49,16 +36,21 @@ public sealed class SpellUnderline
 
     public (int Start, int End) InputSelection { get; private set; } = (-1, -1);
 
+    private float InputScroll;
+
     // Must run while the input is current, before the early exits: text with no misspellings still has a selection
-    private unsafe void CaptureInputSelection()
+    // Scroll off the input's own state, not guessed from the caret, which only pins it at the line's end
+    // The state outlives focus, but only an active box draws scrolled or shows its selection
+    private unsafe void CaptureInputState()
     {
         var state = ImGuiP.GetInputTextState(ImGuiP.GetItemID());
         if (state.IsNull || !ImGui.IsItemActive())
         {
-            InputSelection = (-1, -1);
+            (InputSelection, InputScroll) = ((-1, -1), 0f);
             return;
         }
 
+        InputScroll = state.ScrollX;
         var from = state.Stb.SelectStart;
         var to = state.Stb.SelectEnd;
 
@@ -70,7 +62,7 @@ public sealed class SpellUnderline
     // Call immediately after the input, while it's the current item
     public void DrawForInput(ref string text)
     {
-        CaptureInputSelection();
+        CaptureInputState();
 
         if (string.IsNullOrEmpty(text) || !Plugin.SpellCheck.IsAvailable)
             return;
@@ -93,7 +85,7 @@ public sealed class SpellUnderline
     {
         var min = ImGui.GetItemRectMin();
         var size = ImGui.GetItemRectSize();
-        var origin = min.X + ImGui.GetStyle().FramePadding.X - ScrollOffset();
+        var origin = min.X + ImGui.GetStyle().FramePadding.X - InputScroll;
         var thick = Thickness * ImGuiHelpers.GlobalScale;
 
         // Under the text, never past the box. Scaled-up small padding would hang it outside
