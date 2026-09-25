@@ -153,7 +153,9 @@ public static class EmoteCache
 
         public async Task<byte[]> LoadAsync(Emote emote)
         {
+            // TildeTools
             var dir = Path.Join(Hosting.DataDirectory.FullName, "EmoteCacheV1");
+            // TildeTools ends
             Directory.CreateDirectory(dir);
 
             var filePath = Path.Join(dir, $"{emote.Id}.{emote.ImageType}");

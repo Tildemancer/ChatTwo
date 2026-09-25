@@ -43,6 +43,7 @@ public sealed class SettingsWindow : Window
             new Database(Plugin, Mutable),
             new Webinterface(Plugin, Mutable),
             new Miscellaneous(Mutable),
+            // TildeTools: Changelog is inserted below, when not hosted
             new About()
         ];
 
@@ -130,10 +131,8 @@ public sealed class SettingsWindow : Window
             IsOpen = false;
         }
 
-        // TildeTools
-        // Anna's and Infi's Ko-fi links live on our Credits tab
+        // TildeTools: Anna's and Infi's Ko-fi links live on our Credits tab
         // If we're a third party plugin of a third party tool, are we a ninth party plugin?
-        // TildeTools ends
 
         if (!save)
             return;

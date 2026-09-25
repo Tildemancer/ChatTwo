@@ -58,7 +58,9 @@ public class InputHandler
         ChunkHandler = new ChunkHandler(plugin);
         PayloadHandler = new PayloadHandler(this);
         AutoCompleteHandler = new AutoCompleteHandler(this);
+        // TildeTools
         Spelling = new SpellUnderline(plugin);
+        // TildeTools ends
     }
 
     // TildeTools

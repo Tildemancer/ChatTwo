@@ -59,10 +59,10 @@ public partial class InputPreview : Window
         Drawing = ValidDraw;
         if (!Drawing)
         {
+            // TildeTools
             LastInput = string.Empty;
             PreviewHeight = 0;
 
-            // TildeTools
             // Height was just zeroed, so remeasure even for the same text
             MeasuredFor = null;
             // TildeTools ends
@@ -72,17 +72,17 @@ public partial class InputPreview : Window
             return;
         }
 
+        // TildeTools
         if (PreviewMessage == null || LastInput != InputHandler.ChatInput)
         {
             LastInput = InputHandler.ChatInput;
             LastTrimmed = LastInput.Trim();
 
-            // TildeTools
             // Past the cap only the parts are drawn, or just the header when the splitter declines
             // Parsed, it cost 28-35 ms at 18k characters: ReplaceWithPayload copies bytes[i..] at every byte
             PreviewMessage = BuildMessage(Encoding.UTF8.GetByteCount(LastTrimmed) > Ipc.Splitter.DefaultByteCap ? string.Empty : LastTrimmed);
-            // TildeTools ends
         }
+        // TildeTools ends
 
         // TildeTools
         UpdateSplitParts();
@@ -135,7 +135,10 @@ public partial class InputPreview : Window
         DrawPreview();
     }
 
+    // TildeTools
+    // CalculatePreview and DrawPreview are in InputPreview.TildeTools.cs
     private void DrawChunksPreview(IReadOnlyList<Chunk> chunks, PayloadHandler? handler = null, float lineWidth = 0f)
+    // TildeTools ends
     {
         CursorPosition = 0;
 
@@ -145,7 +148,9 @@ public partial class InputPreview : Window
             if (chunks[i] is TextChunk text && string.IsNullOrEmpty(text.Content))
                 continue;
 
+            // TildeTools
             DrawChunkPreview(chunks[i], handler, lineWidth);
+            // TildeTools ends
 
             if (i < chunks.Count - 1)
             {
@@ -162,7 +167,9 @@ public partial class InputPreview : Window
         }
     }
 
+    // TildeTools
     private void DrawChunkPreview(Chunk chunk, PayloadHandler? handler = null, float lineWidth = 0f)
+    // TildeTools ends
     {
         if (chunk is IconChunk icon)
         {
@@ -233,4 +240,6 @@ public partial class InputPreview : Window
         // TildeTools ends
         ImGui.NewLine();
     }
+
+    // TildeTools: WhitespaceRegex went with the letter loop, see DrawWords
 }

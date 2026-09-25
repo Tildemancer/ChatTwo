@@ -1,5 +1,7 @@
 ﻿using System.Text;
+// TildeTools
 using ChatTwo.Ipc;
+// TildeTools ends
 using ChatTwo.Code;
 using ChatTwo.GameFunctions;
 using ChatTwo.GameFunctions.Types;
@@ -73,7 +75,9 @@ public class SendHandler
             {
                 activeTab.CurrentChannel.ResetTempChannel();
                 chatInput = string.Empty;
+                // TildeTools
                 return true;
+                // TildeTools ends
             }
 
             if (tellSpecial)
@@ -86,7 +90,9 @@ public class SendHandler
 
                 activeTab.CurrentChannel.ResetTempChannel();
                 chatInput = string.Empty;
+                // TildeTools
                 return true;
+                // TildeTools ends
             }
 
             if (!trimmed.StartsWith('/'))
@@ -120,7 +126,9 @@ public class SendHandler
 
                         activeTab.CurrentChannel.ResetTempChannel();
                         chatInput = string.Empty;
+                        // TildeTools
                         return true;
+                        // TildeTools ends
                     }
 
                     var reason = target.Reason;
@@ -138,7 +146,9 @@ public class SendHandler
 
                     activeTab.CurrentChannel.ResetTempChannel();
                     chatInput = string.Empty;
+                    // TildeTools
                     return true;
+                    // TildeTools ends
                 }
 
                 if (activeTab.CurrentChannel.UseTempChannel)
@@ -169,7 +179,9 @@ public class SendHandler
 
         activeTab.CurrentChannel.ResetTempChannel();
         chatInput = string.Empty;
+        // TildeTools
         return true;
+        // TildeTools ends
     }
 
     private bool HasTranslationCommand(string trimmed)
