@@ -38,12 +38,7 @@ public sealed class SpellUnderline
     public static void Underline(float left, float right, float bottom)
     {
         var y = bottom - Drop * ImGuiHelpers.GlobalScale;
-
-        ImGui.GetWindowDrawList().AddLine(
-            new Vector2(left, y),
-            new Vector2(right, y),
-            ImGui.GetColorU32(Colour),
-            Thickness * ImGuiHelpers.GlobalScale);
+        ImGui.GetWindowDrawList().AddLine(new Vector2(left, y), new Vector2(right, y), ImGui.GetColorU32(Colour), Thickness * ImGuiHelpers.GlobalScale);
     }
 
     public (int Start, int End) InputSelection { get; private set; } = (-1, -1);
@@ -62,13 +57,8 @@ public sealed class SpellUnderline
             return;
         }
 
-        InputScroll = state.ScrollX;
-        var from = state.Stb.SelectStart;
-        var to = state.Stb.SelectEnd;
-
-        InputSelection = from == to
-            ? (-1, -1)
-            : (Math.Min(from, to), Math.Max(from, to));
+        var (from, to) = (state.Stb.SelectStart, state.Stb.SelectEnd);
+        (InputSelection, InputScroll) = (from == to ? (-1, -1) : (Math.Min(from, to), Math.Max(from, to)), state.ScrollX);
     }
 
     // Call immediately after the input, while it's the current item
@@ -95,17 +85,10 @@ public sealed class SpellUnderline
         var index = IndexAt(text, ImGui.GetIO().MousePos.X - (ImGui.GetItemRectMin().X + ImGui.GetStyle().FramePadding.X - InputScroll));
 
         // The box draws its own text, so a misspelling's start is already the index a correction rewrites
-        foreach (var misspelling in misspellings)
-        {
-            if (index < misspelling.Start || index >= misspelling.Start + misspelling.Length)
-                continue;
-
-            SetPendingWord(misspelling.Word(text), misspelling.Start);
-            return;
-        }
-
-        if (Plugin.SpellCheck.WordAt(text, index) is var (start, length))
-            (PendingWord, PendingAt, PendingMisspelled, SynonymsShown) = (text.Substring(start, length), start, false, null);
+        if (misspellings.FirstOrDefault(m => index >= m.Start && index < m.Start + m.Length) is { Length: > 0 } hit)
+            SetPendingWord(hit.Word(text), hit.Start);
+        else if (Plugin.SpellCheck.WordAt(text, index) is var (start, length))
+            SetPendingWord(text.Substring(start, length), start, misspelled: false);
         else
             PendingWord = string.Empty;
     }
@@ -207,13 +190,10 @@ public sealed class SpellUnderline
         return at;
     }
 
-    // A misspelling
+    // A right-clicked word, misspelled unless it's any word for Synonyms and Define
     // at is -1 when unknown, falling back to first-match
     // A wrong index rewrites a word nobody clicked
-    public void SetPendingWord(string word, int at = -1)
-    {
-        (PendingWord, PendingAt, PendingMisspelled, SynonymsShown) = (word, at, true, null);
-    }
+    public void SetPendingWord(string word, int at, bool misspelled = true) => (PendingWord, PendingAt, PendingMisspelled, SynonymsShown) = (word, at, misspelled, null);
 
     public void DrawContextEntries(ref string text)
     {
@@ -270,9 +250,9 @@ public sealed class SpellUnderline
         if (suggestions is null)
             ImGui.TextDisabled("Looking for corrections...");
         else
-            foreach (var suggestion in suggestions.Take(8))
-                if (ImGui.Selectable(suggestion))
-                    text = ReplaceWord(text, PendingWord, suggestion, PendingAt);
+            for (var i = 0; i < Math.Min(8, suggestions.Count); i++)
+                if (ImGui.Selectable(suggestions[i]))
+                    text = ReplaceWord(text, PendingWord, suggestions[i], PendingAt);
 
         ImGui.Separator();
     }
@@ -288,28 +268,14 @@ public sealed class SpellUnderline
             ImGui.SetWindowPos(fit);
     }
 
+    // The word at index at while it's still there, else its first whole-word match, never one inside a longer word
     public static string ReplaceWord(string text, string word, string replacement, int at)
     {
-        if (at >= 0 && at + word.Length <= text.Length &&
-            string.CompareOrdinal(text, at, word, 0, word.Length) == 0)
-            return text[..at] + replacement + text[(at + word.Length)..];
+        if (at < 0 || at + word.Length > text.Length || string.CompareOrdinal(text, at, word, 0, word.Length) != 0)
+            for (at = text.IndexOf(word, StringComparison.Ordinal); at >= 0; at = text.IndexOf(word, at + 1, StringComparison.Ordinal))
+                if ((at == 0 || !char.IsLetterOrDigit(text[at - 1])) && (at + word.Length >= text.Length || !char.IsLetterOrDigit(text[at + word.Length])))
+                    break;
 
-        return ReplaceWord(text, word, replacement);
-    }
-
-    public static string ReplaceWord(string text, string word, string replacement)
-    {
-        for (var i = text.IndexOf(word, StringComparison.Ordinal); i >= 0;
-             i = text.IndexOf(word, i + 1, StringComparison.Ordinal))
-        {
-            var beforeOk = i == 0 || !char.IsLetterOrDigit(text[i - 1]);
-            var after = i + word.Length;
-            var afterOk = after >= text.Length || !char.IsLetterOrDigit(text[after]);
-
-            if (beforeOk && afterOk)
-                return text[..i] + replacement + text[after..];
-        }
-
-        return text;
+        return at < 0 ? text : text[..at] + replacement + text[(at + word.Length)..];
     }
 }
