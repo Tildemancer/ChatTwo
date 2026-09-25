@@ -2077,15 +2077,6 @@ namespace ChatTwo.Resources {
         }
         
         /// <summary>
-        ///   Looks up the modified-build notice.
-        /// </summary>
-        internal static string Options_About_Modified_Build {
-            get {
-                return ResourceManager.GetString("Options_About_Modified_Build", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Adjust chat log position.
         /// </summary>
         internal static string Options_AdjustPosition_Name {

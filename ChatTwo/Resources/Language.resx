@@ -1054,9 +1054,6 @@
     <data name="Options_About_Version" xml:space="preserve">
         <value>Version: </value>
     </data>
-    <data name="Options_About_Modified_Build" xml:space="preserve">
-        <value>This is a modified build running inside another plugin. Please do not report problems with it to Chat 2's maintainers — they did not write these changes.</value>
-    </data>
     <data name="Options_About_Github_Issues" xml:space="preserve">
         <value>Get help through github issues: </value>
     </data>
