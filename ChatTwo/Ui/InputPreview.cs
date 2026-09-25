@@ -376,13 +376,14 @@ public partial class InputPreview : Window
 
     // TildeTools
     // Measuring lays the whole preview out invisibly, as costly as drawing it. Selection and hover don't move text
-    private (Message? Preview, List<Message>? Parts, float Window, bool WindowMode, float Screen, float Font, bool Emotes)? MeasuredFor;
+    // Face as well as size: another font at the same size lays out differently. Plugin.Draw pushes one for every window
+    private (Message? Preview, List<Message>? Parts, float Window, bool WindowMode, float Screen, ImFontPtr Face, float Font, bool Emotes)? MeasuredFor;
 
     public void CalculatePreview()
     {
         // TildeTools
         var key = (PreviewMessage, SplitMessages, InputHandler.MainWindow.LastWindowSize.X,
-            IsWindowMode, ImGui.GetIO().DisplaySize.Y, ImGui.GetFontSize(), Plugin.Config.ShowEmotes);
+            IsWindowMode, ImGui.GetIO().DisplaySize.Y, ImGui.GetFont(), ImGui.GetFontSize(), Plugin.Config.ShowEmotes);
         if (MeasuredFor == key)
             return;
 
