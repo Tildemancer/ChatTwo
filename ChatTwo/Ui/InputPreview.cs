@@ -88,6 +88,7 @@ public partial class InputPreview : Window
             PreviewMessage = BuildMessage(Encoding.UTF8.GetByteCount(LastTrimmed) > Ipc.Splitter.DefaultByteCap ? string.Empty : LastTrimmed);
         }
 
+        // TildeTools
         UpdateSplitParts();
 
         // TildeTools
@@ -121,7 +122,7 @@ public partial class InputPreview : Window
     private bool SplitHasEvaluation;
 
     // TildeTools
-    // Resolved from the game, not the text, so a flag or linked item can change under the same body
+    // Message.TextParamRegex's three, resolved from the game, not the text, so a flag or linked item can change under the same body
     private static readonly string[] LiveParams = ["<item>", "<flag>", "<status>"];
 
     // TildeTools

@@ -66,6 +66,7 @@ public class InputHandler
 
     public void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial)
     {
+        // TildeTools
         ComposedLine = SendHandler.ComposeLine(activeTab, ChatInput);
 
         var inputType = activeTab.CurrentChannel.UseTempChannel
