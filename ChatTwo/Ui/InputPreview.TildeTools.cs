@@ -66,27 +66,20 @@ public partial class InputPreview
     }
 
     private List<string>? SplitParts;
-
     private List<Message>? SplitMessages;
-
-    private string LastSplitInput = string.Empty;
-    private int LastSplitGeneration = -1;
-
     private List<(int Start, int Length)> SplitBodies = [];
+    private (string Line, int Generation) SplitFor = ("", -1);
 
-    private int SplitPostingMs;
-
-    private bool Measuring;
+    // "Will be sent as N messages", built once per split rather than every frame
+    private string SplitHeader = "";
 
     private void UpdateSplitParts()
     {
         var line = InputHandler.ComposedLine;
-        var generation = InputHandler.Plugin.Splitter.Generation;
-        if (line == LastSplitInput && generation == LastSplitGeneration)
+        if ((line, InputHandler.Plugin.Splitter.Generation) == SplitFor)
             return;
 
-        LastSplitInput = line;
-        LastSplitGeneration = generation;
+        SplitFor = (line, InputHandler.Plugin.Splitter.Generation);
         SplitParts = null;
         SplitMessages = null;
         SplitHasEvaluation = false;
@@ -100,7 +93,8 @@ public partial class InputPreview
             return;
 
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
-        SplitPostingMs = InputHandler.Plugin.Splitter.PostingMs(line);
+        var seconds = InputHandler.Plugin.Splitter.PostingMs(line) / 1000f;
+        SplitHeader = seconds >= 1f ? $"Will be sent as {parts.Count} messages, over about {seconds:0.#} seconds:" : $"Will be sent as {parts.Count} messages:";
 
         // The last split's bodies by text, unless the emotes have changed since: switched, loaded or blocked
         // When the count moves, #m changes every part but not its body
@@ -116,7 +110,6 @@ public partial class InputPreview
         SplitHasEvaluation = ParsedBodies.Values.Any(body => body.Count > 1);
 
         SplitSources = InputHandler.Plugin.Splitter.BodySources(line);
-
     }
 
     private List<int> SplitSources = [];
@@ -131,57 +124,45 @@ public partial class InputPreview
     public int SelectedRangeStart = -1;
     public int SelectedRangeEnd = -1;
 
-    private bool InDrag(int caret) =>
-        caret >= 0 && DragAnchor >= 0 && DragHead >= 0 &&
-        caret - 1 >= Math.Min(DragAnchor, DragHead) &&
-        caret <= Math.Max(DragAnchor, DragHead);
-
     // Both in box positions, so one comparison does. The box's selection is a frame behind
+    // The drag's ends are both -1 when not dragging, so its lower end tells
     private bool InSelection(int caret)
     {
-        if (InDrag(caret))
-            return true;
-
         var (from, to) = InputHandler.Spelling.InputSelection;
+        return caret >= 0 && (Covers(Math.Min(DragAnchor, DragHead), Math.Max(DragAnchor, DragHead)) || Covers(from, to));
 
-        return caret >= 0 && from >= 0 && caret - 1 >= from && caret <= to;
+        bool Covers(int low, int high) => low >= 0 && caret - 1 >= low && caret <= high;
     }
 
     // -1 does nothing. The caret lands after the letter, as in a text box
-    private int CaretTargetFor(int afterLetter)
-    {
-        // A split part carries a channel command and markers of ours, so a position in
-        // it means nothing to the box until it has been traced back.
-        var mapped = SourceIndexOf(SplitIndex, afterLetter - 1);
-        return mapped < 0 ? -1 : mapped + 1;
-    }
+    // A split part carries a channel command and markers of ours, so a position in
+    // it means nothing to the box until it has been traced back.
+    private int CaretTargetFor(int afterLetter) => SourceIndexOf(afterLetter - 1) is >= 0 and var mapped ? mapped + 1 : -1;
 
     // part -> body -> composed line -> box. A step that can't be made gives -1
-    private int SourceIndexOf(int partIndex, int positionInPart)
+    // In SplitIndex's part, or the unsplit text when that's -1
+    private int SourceIndexOf(int positionInPart)
     {
-        var typedText = InputHandler.ChatInput;
         var (leading, prefix) = MapBasis();
 
         // Nothing was split, so the drawn text is the box's own, trimmed. Only the
         // leading spaces stand between the two. Most messages come through here.
-        if (partIndex < 0)
+        var index = positionInPart + leading;
+
+        if (SplitIndex >= 0)
         {
-            var direct = positionInPart + leading;
-            return direct >= 0 && direct < typedText.Length ? direct : -1;
+            if (SplitIndex >= SplitSources.Count || SplitIndex >= SplitBodies.Count)
+                return -1;
+
+            var body = SplitBodies[SplitIndex];
+            var offset = positionInPart - body.Start;
+            if (offset < 0 || offset >= body.Length)
+                return -1;
+
+            index = SplitSources[SplitIndex] + offset - prefix + leading;
         }
 
-        if (partIndex >= SplitSources.Count || partIndex >= SplitBodies.Count)
-            return -1;
-
-        var body = SplitBodies[partIndex];
-        var offset = positionInPart - body.Start;
-        if (offset < 0 || offset >= body.Length)
-            return -1;
-
-        var composed = SplitSources[partIndex] + offset;
-
-        var index = composed - prefix + leading;
-        return index >= 0 && index < typedText.Length ? index : -1;
+        return index >= 0 && index < InputHandler.ChatInput.Length ? index : -1;
     }
 
     // Once per text, not per letter: SourceIndexOf runs for every drawn letter, and Trim copies the whole input
@@ -203,24 +184,18 @@ public partial class InputPreview
     private Vector2 KeepOnScreen(Vector2 wanted, Vector2 windowPos, float windowWidth, float previewWidth)
     {
         var screen = ImGui.GetIO().DisplaySize;
-
         if (wanted.Y >= 0 && wanted.Y + PreviewHeight <= screen.Y)
             return wanted;
 
+        // Beside the window, to the right unless only the left has room
         var right = windowPos.X + windowWidth;
-        var fitsRight = right + previewWidth <= screen.X;
-        var fitsLeft = windowPos.X - previewWidth >= 0;
-
-        var x = fitsRight || !fitsLeft ? right : windowPos.X - previewWidth;
-
-        var top = Math.Clamp(windowPos.Y, 0, Math.Max(0, screen.Y - PreviewHeight));
-
-        return new Vector2(Math.Clamp(x, 0, Math.Max(0, screen.X - previewWidth)), top);
+        var x = right + previewWidth <= screen.X || windowPos.X < previewWidth ? right : windowPos.X - previewWidth;
+        return new Vector2(Math.Clamp(x, 0, Math.Max(0, screen.X - previewWidth)), Math.Clamp(windowPos.Y, 0, Math.Max(0, screen.Y - PreviewHeight)));
     }
 
-    private float ColumnWidth = 200f;
+    private float ColumnWidth;
 
-    public float PreviewWidth;
+    private float PreviewWidth;
 
     private readonly List<List<int>> Columns = [];
 
@@ -248,27 +223,14 @@ public partial class InputPreview
 
         var padding = IsWindowMode ? ImGui.GetStyle().WindowPadding.Y * 2 : 0;
 
-        // Nothing interactive while measuring, duplicate ids would fight the real draw
-        Measuring = true;
-        try
-        {
-            if (SplitMessages is null)
+        if (SplitMessages is null)
+            PreviewHeight = MeasureColumn(() =>
             {
-                PreviewHeight = MeasureColumn(() =>
-                {
-                    ImGui.TextUnformatted(Language.Options_Preview_Header);
-                    DrawChunksPreview(PreviewMessage!.Content);
-                }) + padding;
-
-                return;
-            }
-
+                ImGui.TextUnformatted(Language.Options_Preview_Header);
+                DrawChunksPreview(PreviewMessage!.Content);
+            }) + padding;
+        else
             PackColumns(padding);
-        }
-        finally
-        {
-            Measuring = false;
-        }
     }
 
     private void PackColumns(float padding)
@@ -281,7 +243,7 @@ public partial class InputPreview
         MeasureColumn(() =>
         {
             var mark = ImGui.GetCursorPosY();
-            DrawSplitHeader();
+            ImGui.TextDisabled(SplitHeader);
             header = ImGui.GetCursorPosY() - mark;
 
             for (var i = 0; i < SplitMessages!.Count; i++)
@@ -292,41 +254,34 @@ public partial class InputPreview
             }
         });
 
+        // CalculatePreview has already set PreviewWidth for one column
         if (heights.Count < SplitMessages!.Count)
         {
             Columns.Add([.. Enumerable.Range(0, SplitMessages.Count)]);
             PreviewHeight = available + padding;
-            PreviewWidth = ColumnWidth + ImGui.GetStyle().WindowPadding.X * 2;
             return;
         }
 
         List<int> current = [];
-        var used = header;
-        var tallest = header;
+        Columns.Add(current);
+        var (used, tallest) = (header, header);
 
         for (var i = 0; i < heights.Count; i++)
         {
             // A part taller than the screen overflows its column rather than looping forever
             if (current.Count > 0 && used + heights[i] > available)
             {
-                Columns.Add(current);
-                tallest = Math.Max(tallest, used);
-                current = [];
+                Columns.Add(current = []);
                 used = 0;
             }
 
             current.Add(i);
             used += heights[i];
-        }
-
-        if (current.Count > 0)
-        {
-            Columns.Add(current);
             tallest = Math.Max(tallest, used);
         }
 
         PreviewHeight = Math.Min(tallest, available) + padding;
-        PreviewWidth = ColumnWidth * Math.Max(1, Columns.Count) + ImGui.GetStyle().WindowPadding.X * 2;
+        PreviewWidth = ColumnWidth * Columns.Count + ImGui.GetStyle().WindowPadding.X * 2;
     }
 
     // Column width, since text wraps against the region it's drawn in
@@ -382,51 +337,42 @@ public partial class InputPreview
 
         if (SplitMessages is null)
         {
-            using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
-            {
-                ImGui.TextUnformatted(Language.Options_Preview_Header);
-                DrawChunksPreview(PreviewMessage!.Content, InputHandler.PayloadHandler);
-            }
-
-            DrawSpellingPopup();
-            return;
-        }
-
-        // A tooltip sizes itself, so one column. Window-mode columns linger after switching, so check the mode too
-        if (!IsWindowMode || Columns.Count == 0)
-        {
-            using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
-            {
-                DrawSplitHeader();
-
-                for (var i = 0; i < SplitMessages.Count; i++)
-                    DrawSplitPart(i, InputHandler.PayloadHandler);
-            }
-
-            DrawSpellingPopup();
-            return;
-        }
-
-        var height = ImGui.GetContentRegionAvail().Y;
-
-        for (var c = 0; c < Columns.Count; c++)
-        {
-            if (c > 0)
-                ImGui.SameLine(0, 0);
-
-            using var child = ImRaii.Child($"##preview-col{c}", new Vector2(ColumnWidth, height), false,
-                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
-
-            if (!child)
-                continue;
-
             using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
+            ImGui.TextUnformatted(Language.Options_Preview_Header);
+            DrawChunksPreview(PreviewMessage!.Content, InputHandler.PayloadHandler);
+        }
+        // A tooltip sizes itself, so one column. Window-mode columns linger after switching, so check the mode too
+        else if (!IsWindowMode || Columns.Count == 0)
+        {
+            using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
+            ImGui.TextDisabled(SplitHeader);
 
-            if (c == 0)
-                DrawSplitHeader();
+            for (var i = 0; i < SplitMessages.Count; i++)
+                DrawSplitPart(i, InputHandler.PayloadHandler);
+        }
+        else
+        {
+            var height = ImGui.GetContentRegionAvail().Y;
 
-            foreach (var part in Columns[c])
-                DrawSplitPart(part, InputHandler.PayloadHandler);
+            for (var c = 0; c < Columns.Count; c++)
+            {
+                if (c > 0)
+                    ImGui.SameLine(0, 0);
+
+                using var child = ImRaii.Child($"##preview-col{c}", new Vector2(ColumnWidth, height), false,
+                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+
+                if (!child)
+                    continue;
+
+                using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
+
+                if (c == 0)
+                    ImGui.TextDisabled(SplitHeader);
+
+                foreach (var part in Columns[c])
+                    DrawSplitPart(part, InputHandler.PayloadHandler);
+            }
         }
 
         DrawSpellingPopup();
@@ -441,7 +387,7 @@ public partial class InputPreview
 
     // complete: not being typed into. The drawn text is trimmed, which loses the trailing-space
     // signal, so without this the last word of every part is never checked
-    private void SetSpellSource(string text, bool complete = false, (int Start, int Length)? body = null)
+    private void SetSpellSource(string text, bool complete, (int Start, int Length)? body = null)
     {
         // A word added or ignored changes the answers for text that has not changed.
         var generation = InputHandler.Plugin.SpellCheck.Generation;
@@ -522,26 +468,9 @@ public partial class InputPreview
         InputHandler.Spelling.DrawContextEntries(ref InputHandler.ChatInput);
     }
 
-    private void DrawSplitHeader()
-    {
-        if (SplitParts is not { } parts)
-            return;
-
-        var seconds = SplitPostingMs / 1000f;
-
-        ImGui.TextDisabled(seconds >= 1f
-            ? $"Will be sent as {parts.Count} messages, over about {seconds:0.#} seconds:"
-            : $"Will be sent as {parts.Count} messages:");
-    }
-
+    // Callers pass only indices of SplitMessages, which is set whenever a part is drawn
     private void DrawSplitPart(int index, PayloadHandler? handler)
     {
-        if (SplitParts is not { } parts || SplitMessages is not { } messages)
-            return;
-
-        if (index < 0 || index >= messages.Count)
-            return;
-
         using var id = ImRaii.PushId(index);
 
         ImGui.TextDisabled($"{index + 1}.");
@@ -549,33 +478,27 @@ public partial class InputPreview
 
         using var indent = ImRaii.PushIndent();
 
-        var previousSplitIndex = SplitIndex;
+        SplitIndex = index;
 
         try
         {
-            SplitIndex = index;
-
             // Every part but the last was cut to length, so only the last part's last word is unfinished
-            var typed = InputHandler.ChatInput;
-            var lastPart = index == parts.Count - 1;
-
-            SetSpellSource(
-                parts[index],
-                complete: !lastPart || FinishedTyping(typed),
+            SetSpellSource(SplitParts![index], complete: index != SplitParts.Count - 1 || FinishedTyping(InputHandler.ChatInput),
                 body: index < SplitBodies.Count ? SplitBodies[index] : null);
 
-            DrawChunksPreview(messages[index].Content, handler);
+            DrawChunksPreview(SplitMessages![index].Content, handler);
         }
         finally
         {
-            SplitIndex = previousSplitIndex;
+            SplitIndex = -1;
         }
     }
 
     // A widget per word, not per letter: at 11000 letters the Selectables cost about 2.7 ms a frame
-    private void DrawWords(string content)
+    private void DrawWords(string content, PayloadHandler? handler)
     {
         var selecting = DragAnchor >= 0 || InputHandler.Spelling.InputSelection.Start >= 0;
+        var (drawList, textColour) = (ImGui.GetWindowDrawList(), ImGui.GetColorU32(ImGuiCol.Text));
 
         foreach (var word in WordsOf(content))
         {
@@ -594,7 +517,9 @@ public partial class InputPreview
             var size = wordSize with { X = Math.Max(wordSize.X, 1f) };
 
             // Layout is all that counts in the measuring child, a pixel tall and taking no input
-            if (Measuring)
+            // Nothing interactive while measuring, duplicate ids would fight the real draw
+            // The measure pass is the only caller with no handler
+            if (handler is null)
             {
                 ImGui.Dummy(size);
                 ImGui.SameLine();
@@ -609,7 +534,7 @@ public partial class InputPreview
             if (selecting)
                 DrawRuns(word, start, from, to.Y, selection: true);
 
-            ImGui.GetWindowDrawList().AddText(from, ImGui.GetColorU32(ImGuiCol.Text), word);
+            drawList.AddText(from, textColour, word);
             DrawRuns(word, start, from, to.Y, selection: false);
 
             if (ImGui.IsMouseHoveringRect(from, to))
@@ -709,7 +634,7 @@ public partial class InputPreview
             while (first > 0 && ReferenceEquals(SpellMarks[first - 1], misspelled))
                 first--;
 
-            InputHandler.Spelling.SetPendingWord(misspelled, SourceIndexOf(SplitIndex, first));
+            InputHandler.Spelling.SetPendingWord(misspelled, SourceIndexOf(first));
 
             // Flagged, not opened: a popup is found by the id stack it was opened under, and this is in a child
             OpenSpellingPopup = true;

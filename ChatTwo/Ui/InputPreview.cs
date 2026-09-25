@@ -67,11 +67,6 @@ public partial class InputPreview : Window
             PreviewMessage = null;
             HasEvaluation = false;
 
-            // TildeTools
-            // A drag ends on button-up, only noticed while drawing, or it survives into the next preview
-            DragAnchor = -1;
-            DragHead = -1;
-
             return;
         }
 
@@ -230,7 +225,7 @@ public partial class InputPreview : Window
         }
 
         // TildeTools
-        DrawWords(text.Content);
+        DrawWords(text.Content, handler);
         ImGui.NewLine();
     }
 }
