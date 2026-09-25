@@ -375,8 +375,10 @@ public partial class InputPreview : Window
     private readonly List<List<int>> Columns = [];
 
     // TildeTools
-    // Measuring lays the whole preview out invisibly, as costly as drawing it. Selection and hover don't move text
-    // Face as well as size: another font at the same size lays out differently. Plugin.Draw pushes one for every window
+    // Measuring lays the whole preview out invisibly, as costly as drawing it
+    // Selection and hover don't move text
+    // Face as well as size: another font at the same size lays out differently
+    // Plugin.Draw pushes one for every window
     private (Message? Preview, List<Message>? Parts, float Window, bool WindowMode, float Screen, ImFontPtr Face, float Font, bool Emotes)? MeasuredFor;
 
     public void CalculatePreview()
