@@ -96,6 +96,7 @@ public sealed class About : ISettingsTab
             ImGui.TextUnformatted("and is maintained by");
             ImGui.SameLine();
             ImGui.TextColored(ImGuiColors.ParsedGold, "Infi");
+            ImGui.SameLine(0, 0);
             ImGui.TextUnformatted(".");
 
             ImGui.Spacing();
