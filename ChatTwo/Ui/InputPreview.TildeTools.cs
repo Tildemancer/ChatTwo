@@ -452,16 +452,15 @@ public partial class InputPreview
     private string? MisspelledWordAt(int position) =>
         position >= 0 && position < SpellMarks.Length ? SpellMarks[position] : null;
 
-    private bool OpenSpellingPopup;
+    // The frame a misspelling was right-clicked, its menu opening on the next
+    // On the press itself ImGui ends the frame by closing popups when no item is hovered, and an open menu blocks the words
+    private int SpellingClickFrame = int.MinValue;
 
     private void DrawSpellingPopup()
     {
         // Opened here so the id matches BeginPopup below
-        if (OpenSpellingPopup)
-        {
-            OpenSpellingPopup = false;
+        if (ImGui.GetFrameCount() == SpellingClickFrame + 1)
             ImGui.OpenPopup("##preview-spelling");
-        }
 
         using var popup = ImRaii.Popup("##preview-spelling");
         if (!popup.Success)
@@ -631,7 +630,8 @@ public partial class InputPreview
                 new Vector2(edge, from.Y), new Vector2(edge, to.Y), ImGui.GetColorU32(ImGuiCol.Text), ImGuiHelpers.GlobalScale);
         }
 
-        if (MisspelledWordAt(start + k) is { } misspelled && ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        // Through an open menu too: the press closes it and the next frame opens this word's
+        if (MisspelledWordAt(start + k) is { } misspelled && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup) && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
         {
             var first = start + k;
             while (first > 0 && ReferenceEquals(SpellMarks[first - 1], misspelled))
@@ -640,7 +640,7 @@ public partial class InputPreview
             InputHandler.Spelling.SetPendingWord(misspelled, SourceIndexOf(first));
 
             // Flagged, not opened: a popup is found by the id stack it was opened under, and this is in a child
-            OpenSpellingPopup = true;
+            SpellingClickFrame = ImGui.GetFrameCount();
         }
     }
 
