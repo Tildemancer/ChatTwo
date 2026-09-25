@@ -42,8 +42,8 @@ public class SendHandler
         var channel = activeTab.CurrentChannel.UseTempChannel ? activeTab.CurrentChannel.TempChannel : activeTab.CurrentChannel.Channel;
 
         // TildeTools
-        // Asked every frame, so the head is built only when its inputs change: a tell's reads the World sheet
-        // Trimming and joining the same line again is a 36 KB copy each at 18k characters
+        // Cached: asked every frame, and a tell's head reads the World sheet
+        // At 18k characters, trimming and joining copy 36 KB each
         if ((chatInput, target?.Name, target?.World ?? 0, channel) == (Composed.Input, Composed.Name, Composed.World, Composed.Channel))
             return Composed.Line;
 

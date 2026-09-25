@@ -70,7 +70,6 @@ public partial class InputPreview
     private List<(int Start, int Length)> SplitBodies = [];
     private (string Line, int Generation) SplitFor = ("", -1);
 
-    // "Will be sent as N messages", built once per split rather than every frame
     private string SplitHeader = "";
 
     private void UpdateSplitParts()
@@ -121,7 +120,7 @@ public partial class InputPreview
 
     private int DragHead = -1;
 
-    // For the box's next callback, in its bytes: a click is a range of one point
+    // In the box's bytes, for InputHandler.Callback
     public (int Start, int End)? SelectedRange;
 
     // Box works in bytes, preview in chars. Drifts on accents
@@ -129,7 +128,6 @@ public partial class InputPreview
         Encoding.UTF8.GetByteCount(InputHandler.ChatInput.AsSpan(0, Math.Clamp(position, 0, InputHandler.ChatInput.Length)));
 
     // Both in box positions, so one comparison does. The box's selection is a frame behind
-    // The drag's ends are both -1 when not dragging, so its lower end tells
     private bool InSelection(int caret)
     {
         var (from, to) = InputHandler.Spelling.InputSelection;
@@ -144,7 +142,6 @@ public partial class InputPreview
     private int CaretTargetFor(int afterLetter) => SourceIndexOf(afterLetter - 1) is >= 0 and var mapped ? mapped + 1 : -1;
 
     // part -> body -> composed line -> box. A step that can't be made gives -1
-    // In SplitIndex's part, or the unsplit text when that's -1
     private int SourceIndexOf(int positionInPart)
     {
         var (leading, prefix) = MapBasis();
@@ -191,7 +188,6 @@ public partial class InputPreview
         if (wanted.Y >= 0 && wanted.Y + PreviewHeight <= screen.Y)
             return wanted;
 
-        // Beside the window, to the right unless only the left has room
         var right = windowPos.X + windowWidth;
         var x = right + previewWidth <= screen.X || windowPos.X < previewWidth ? right : windowPos.X - previewWidth;
         return new Vector2(Math.Clamp(x, 0, Math.Max(0, screen.X - previewWidth)), Math.Clamp(windowPos.Y, 0, Math.Max(0, screen.Y - PreviewHeight)));
@@ -204,8 +200,7 @@ public partial class InputPreview
     private readonly List<List<int>> Columns = [];
 
     // Measuring lays the whole preview out invisibly, as costly as drawing it. Selection and hover don't move text
-    // Face as well as size: another font at the same size lays out differently
-    // Plugin.Draw pushes one for every window
+    // Face too: Plugin.Draw's font can change at the same size
     private (Message? Preview, List<Message>? Parts, float Window, bool WindowMode, float Screen, ImFontPtr Face, float Font, bool Emotes)? MeasuredFor;
 
     public void CalculatePreview()
@@ -452,8 +447,8 @@ public partial class InputPreview
     private string? MisspelledWordAt(int position) =>
         position >= 0 && position < SpellMarks.Length ? SpellMarks[position] : null;
 
-    // The frame a misspelling was right-clicked, its menu opening on the next
-    // On the press itself ImGui ends the frame by closing popups when no item is hovered, and an open menu blocks the words
+    // The menu opens a frame after the press: ImGui's EndFrame closes popups on a right press with no item hovered
+    // An open menu blocks the words
     private int SpellingClickFrame = int.MinValue;
 
     private void DrawSpellingPopup()
@@ -470,7 +465,6 @@ public partial class InputPreview
         InputHandler.Spelling.DrawContextEntries(ref InputHandler.ChatInput);
     }
 
-    // Callers pass only indices of SplitMessages, which is set whenever a part is drawn
     private void DrawSplitPart(int index, PayloadHandler? handler)
     {
         using var id = ImRaii.PushId(index);
@@ -520,7 +514,7 @@ public partial class InputPreview
 
             // Layout is all that counts in the measuring child, a pixel tall and taking no input
             // Nothing interactive while measuring, duplicate ids would fight the real draw
-            // The measure pass is the only caller with no handler
+            // Only the measure pass has no handler
             if (handler is null)
             {
                 ImGui.Dummy(size);
@@ -630,7 +624,6 @@ public partial class InputPreview
                 new Vector2(edge, from.Y), new Vector2(edge, to.Y), ImGui.GetColorU32(ImGuiCol.Text), ImGuiHelpers.GlobalScale);
         }
 
-        // Through an open menu too: the press closes it and the next frame opens this word's
         if (MisspelledWordAt(start + k) is { } misspelled && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup) && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
         {
             var first = start + k;

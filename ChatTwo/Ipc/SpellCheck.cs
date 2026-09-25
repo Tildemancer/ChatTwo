@@ -81,8 +81,8 @@ public sealed class SpellCheck : IDisposable
         return result;
     }
 
-    // Null while TildeTools is still looking, the menu asks again next frame
-    // Its own catch rather than Try: asked every frame the menu is open, and Try's lambda allocates each call
+    // Null while TildeTools is still looking
+    // Not Try: asked every frame the menu is open, and Try's lambda allocates
     public IReadOnlyList<string>? Suggest(string word)
     {
         try
@@ -110,17 +110,16 @@ public sealed class SpellCheck : IDisposable
         Generation++;
     }
 
-    // The word around index as the spellchecker reads words, so any word can be looked up
     public (int Start, int Length)? WordAt(string text, int index) =>
         Try<(int, int)?>(() => WordAtGate.InvokeFunc(text, index) is [var start, var length] ? (start, length) : null, null);
 
     public IReadOnlyList<string> Synonyms(string word) => Try(() => SynonymsGate.InvokeFunc(word), []);
 
-    // Opens TildeTools' definition window
-    // Its Use button calls use with the word to put in original's place, none when use is null
+    // Opens TildeTools' Define window
+    // Its Use button calls use with original's replacement, none when use is null
     public void Define(string word, string original, Action<string>? use) => Try(() => DefineGate.InvokeFunc(word, original, use), false);
 
-    // A call that can't throw here: TildeTools may be unloading, or the module behind the gate off
+    // Gates throw while TildeTools unloads or their module is off
     internal static T Try<T>(Func<T> call, T failed)
     {
         try

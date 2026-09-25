@@ -22,13 +22,10 @@ public sealed class SpellUnderline
     // Only the position tells two identical words apart. Without it the fourth "teh" fixed the first
     private int PendingAt = -1;
 
-    // Corrections only for a misspelling, any word gets Synonyms and Define
     private bool PendingMisspelled;
 
-    // Null until Synonyms is clicked, and again when it's clicked a second time
     private IReadOnlyList<string>? SynonymsShown;
 
-    // Define's Use, landing on the next frame the input draws, where its text can be written
     private (string Word, int At, string Replacement)? Used;
 
     private Action<string> UseFor(string word, int at) => replacement => Used = (word, at, replacement);
@@ -76,15 +73,12 @@ public sealed class SpellUnderline
         if (misspellings.Count > 0)
             UnderlineInput(text, misspellings);
 
-        // Only for a click in this box
-        // The preview draws first, so a click latched there got wiped here
         // AllowWhenBlockedByPopup: the menu, still open on the press, reopens on the release with whatever this latched
         if (!ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup) || !ImGui.IsMouseClicked(ImGuiMouseButton.Right))
             return;
 
         var index = IndexAt(text, ImGui.GetIO().MousePos.X - (ImGui.GetItemRectMin().X + ImGui.GetStyle().FramePadding.X - InputScroll));
 
-        // The box draws its own text, so a misspelling's start is already the index a correction rewrites
         if (misspellings.FirstOrDefault(m => index >= m.Start && index < m.Start + m.Length) is { Length: > 0 } hit)
             SetPendingWord(hit.Word(text), hit.Start);
         else if (Plugin.SpellCheck.WordAt(text, index) is var (start, length))
@@ -93,7 +87,6 @@ public sealed class SpellUnderline
             PendingWord = string.Empty;
     }
 
-    // The character under x, -1 left of the text: the longest prefix no wider than x ends just before it
     internal static int IndexAt(string text, float x)
     {
         if (x < 0)
@@ -131,7 +124,7 @@ public sealed class SpellUnderline
         var colour = ImGui.GetColorU32(Colour);
         var measured = MeasuredFor(text, misspellings);
 
-        // Cut to the frame like the glyphs, by hand rather than a clip rect pushed
+        // Cut to the frame like the glyphs
         // Insetting by the padding shaves the end letters' marks
         for (var i = 0; i < misspellings.Count; i++)
         {
@@ -148,7 +141,7 @@ public sealed class SpellUnderline
         }
     }
 
-    // Face as well as size: another font at the same size measures differently
+    // Face too: Plugin.Draw's font can change at the same size
     private (IReadOnlyList<Misspelling> For, ImFontPtr Face, float Size, List<(float Left, float Width)> At) Measured = ([], default, 0f, []);
 
     private List<(float Left, float Width)> MeasuredFor(string text, IReadOnlyList<Misspelling> misspellings)
@@ -190,9 +183,7 @@ public sealed class SpellUnderline
         return at;
     }
 
-    // A right-clicked word, misspelled unless it's any word for Synonyms and Define
-    // at is -1 when unknown, falling back to first-match
-    // A wrong index rewrites a word nobody clicked
+    // at is -1 when unknown, never a guess
     public void SetPendingWord(string word, int at, bool misspelled = true) => (PendingWord, PendingAt, PendingMisspelled, SynonymsShown) = (word, at, misspelled, null);
 
     public void DrawContextEntries(ref string text)
@@ -208,7 +199,7 @@ public sealed class SpellUnderline
 
         if (SynonymsShown is not null)
         {
-            // Its own ids, a synonym can share a label with a correction
+            // A synonym can share a label with a correction
             using var id = ImRaii.PushId("synonyms");
             using var indent = ImRaii.PushIndent();
 
@@ -268,7 +259,6 @@ public sealed class SpellUnderline
             ImGui.SetWindowPos(fit);
     }
 
-    // The word at index at while it's still there, else its first whole-word match, never one inside a longer word
     public static string ReplaceWord(string text, string word, string replacement, int at)
     {
         if (at < 0 || at + word.Length > text.Length || string.CompareOrdinal(text, at, word, 0, word.Length) != 0)

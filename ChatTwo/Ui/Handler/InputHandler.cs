@@ -212,7 +212,7 @@ public class InputHandler
         }
 
         // TildeTools
-        // A preview click or drag, collapsed onto the cursor for a click so the old highlight goes
+        // A click is a one-point range, so the old highlight goes
         if (Plugin.InputPreview.SelectedRange is var (from, to))
         {
             (data.SelectionStart, data.SelectionEnd, data.CursorPos) = (from, to, to);
