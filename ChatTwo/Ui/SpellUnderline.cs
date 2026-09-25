@@ -82,10 +82,6 @@ public sealed class SpellUnderline
             Used = null;
         }
 
-        // An empty box still takes the right-click below, so the menu can't bring back the last word
-        if (!Plugin.SpellCheck.IsAvailable)
-            return;
-
         var misspellings = Plugin.SpellCheck.Check(text);
         if (misspellings.Count > 0)
             UnderlineInput(text, misspellings);
