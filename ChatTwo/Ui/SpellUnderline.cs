@@ -104,7 +104,7 @@ public sealed class SpellUnderline
     }
 
     // The character under x, -1 left of the text: the longest prefix no wider than x ends just before it
-    private static int IndexAt(string text, float x)
+    internal static int IndexAt(string text, float x)
     {
         if (x < 0)
             return -1;

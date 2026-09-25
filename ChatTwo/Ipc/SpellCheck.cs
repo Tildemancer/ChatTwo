@@ -176,8 +176,8 @@ public sealed class SpellCheck : IDisposable
         }
     }
 
-    // Opens TildeTools' definition window. Its Use button calls use with the word to put in original's place
-    public void Define(string word, string original, Action<string> use)
+    // Opens TildeTools' definition window. Its Use button calls use with the word to put in original's place, none when use is null
+    public void Define(string word, string original, Action<string>? use)
     {
         try
         {

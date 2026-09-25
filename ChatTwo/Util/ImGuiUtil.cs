@@ -66,6 +66,10 @@ public static class ImGuiUtil
             var oldPos = ImGui.GetCursorScreenPos();
 
             ImGuiNative.TextUnformatted(text, textEnd);
+
+            // TildeTools
+            Ui.WordLookup.Watch(text, textEnd);
+
             PostPayload(chunk, handler);
 
             if (!ReferenceEquals(LastLink, chunk.Link))
