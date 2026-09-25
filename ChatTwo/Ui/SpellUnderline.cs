@@ -145,17 +145,18 @@ public sealed class SpellUnderline
         var clickedWord = string.Empty;
         var clickedAt = -1;
 
-        // Clipped to the frame like the glyphs. Insetting by the padding shaves the end letters' marks
-        drawList.PushClipRect(min, min + size, true);
-
+        // Cut to the frame like the glyphs, by hand rather than a clip rect pushed
+        // Insetting by the padding shaves the end letters' marks
         for (var i = 0; i < misspellings.Count; i++)
         {
             var (offset, width) = measured[i];
             if (float.IsNaN(offset))
                 continue;
 
-            var left = origin + offset;
-            var right = left + width;
+            var left = Math.Max(origin + offset, min.X);
+            var right = Math.Min(origin + offset + width, min.X + size.X);
+            if (right <= left)
+                continue;
 
             drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, thick);
 
@@ -169,7 +170,6 @@ public sealed class SpellUnderline
             }
         }
 
-        drawList.PopClipRect();
         return (clickedWord, clickedAt);
     }
 
