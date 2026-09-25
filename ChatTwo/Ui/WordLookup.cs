@@ -23,8 +23,9 @@ public static class WordLookup
         if (!ImGui.IsMouseClicked(ImGuiMouseButton.Right) && !ImGui.IsMouseClicked(ImGuiMouseButton.Left))
             return;
 
-        // Forgotten once each click, so a click on an icon or emote can't bring back the last word
-        if (ClickFrame != ImGui.GetFrameCount())
+        // Forgotten once each click on the log, so a click on an icon or emote can't bring back the last word
+        // Not for a click inside the open menu, which stays open
+        if (ClickFrame != ImGui.GetFrameCount() && ImGui.IsWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup))
             (Clicked, ClickFrame, Word) = (("", -1), ImGui.GetFrameCount(), null);
 
         if (!ImGui.IsItemHovered())
