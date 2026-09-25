@@ -23,13 +23,14 @@ public sealed class SpellCheck : IDisposable
     private ICallGateSubscriber<string, bool> IgnoreGate { get; }
     private ICallGateSubscriber<string, int, List<int>> WordAtGate { get; }
     private ICallGateSubscriber<string, List<string>> SynonymsGate { get; }
-    private ICallGateSubscriber<string, string, Action<string>, bool> DefineGate { get; }
+    private ICallGateSubscriber<string, string, Action<string>?, bool> DefineGate { get; }
     private ICallGateSubscriber<object?> AvailableGate { get; }
 
     // Many, not one: a split message is checked a part at a time, so one slot means each part evicts the last
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
 
-    // Moves when answers change (new dictionary, word added or ignored). Drop remembered results when it does
+    // Moves when answers change (new dictionary, word added or ignored)
+    // Drop remembered results when it does
     public int Generation { get; private set; }
 
     // Every part of a 32000-byte message, about 67, with room over
@@ -44,7 +45,7 @@ public sealed class SpellCheck : IDisposable
         IgnoreGate = Plugin.Interface.GetIpcSubscriber<string, bool>("TildeTools.Spell.Ignore");
         WordAtGate = Plugin.Interface.GetIpcSubscriber<string, int, List<int>>("TildeTools.Spell.WordAt");
         SynonymsGate = Plugin.Interface.GetIpcSubscriber<string, List<string>>("TildeTools.Spell.Synonyms");
-        DefineGate = Plugin.Interface.GetIpcSubscriber<string, string, Action<string>, bool>("TildeTools.Spell.Define");
+        DefineGate = Plugin.Interface.GetIpcSubscriber<string, string, Action<string>?, bool>("TildeTools.Spell.Define");
         AvailableGate = Plugin.Interface.GetIpcSubscriber<object?>("TildeTools.Spell.Available");
 
         AvailableGate.Subscribe(OnAvailable);
@@ -61,17 +62,7 @@ public sealed class SpellCheck : IDisposable
         Generation++;
     }
 
-    public void Refresh()
-    {
-        try
-        {
-            IsAvailable = ApiVersionGate.InvokeFunc() >= RequiredApiVersion;
-        }
-        catch
-        {
-            IsAvailable = false;
-        }
-    }
+    public void Refresh() => IsAvailable = Try(() => ApiVersionGate.InvokeFunc() >= RequiredApiVersion, false);
 
     private bool ReportedState;
 
@@ -109,82 +100,45 @@ public sealed class SpellCheck : IDisposable
         return result;
     }
 
-    // Null while Wordsmith is still looking, the menu asks again next frame
-    public IReadOnlyList<string>? Suggest(string word)
-    {
-        try
-        {
-            return SuggestGate.InvokeFunc(word);
-        }
-        catch
-        {
-            return [];
-        }
-    }
+    // Null while TildeTools is still looking, the menu asks again next frame
+    public IReadOnlyList<string>? Suggest(string word) => Try(() => SuggestGate.InvokeFunc(word), []);
 
     public void AddToDictionary(string word)
     {
-        try
-        {
-            AddGate.InvokeFunc(word);
-        }
-        catch
-        {
-        }
-
+        Try(() => AddGate.InvokeFunc(word), false);
         Cached.Clear();
         Generation++;
     }
 
-    // Until restart, without learning it. Filtered in the checker, so every box agrees
+    // Until restart, without learning it
+    // Filtered in the checker, so every box agrees
     public void Ignore(string word)
     {
-        try
-        {
-            IgnoreGate.InvokeFunc(word);
-        }
-        catch
-        {
-        }
-
+        Try(() => IgnoreGate.InvokeFunc(word), false);
         Cached.Clear();
         Generation++;
     }
 
     // The word around index as the spellchecker reads words, so any word can be looked up
-    public (int Start, int Length)? WordAt(string text, int index)
-    {
-        try
-        {
-            return WordAtGate.InvokeFunc(text, index) is [var start, var length] ? (start, length) : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
+    public (int Start, int Length)? WordAt(string text, int index) =>
+        Try<(int, int)?>(() => WordAtGate.InvokeFunc(text, index) is [var start, var length] ? (start, length) : null, null);
 
-    public IReadOnlyList<string> Synonyms(string word)
-    {
-        try
-        {
-            return SynonymsGate.InvokeFunc(word);
-        }
-        catch
-        {
-            return [];
-        }
-    }
+    public IReadOnlyList<string> Synonyms(string word) => Try(() => SynonymsGate.InvokeFunc(word), []);
 
-    // Opens TildeTools' definition window. Its Use button calls use with the word to put in original's place, none when use is null
-    public void Define(string word, string original, Action<string>? use)
+    // Opens TildeTools' definition window
+    // Its Use button calls use with the word to put in original's place, none when use is null
+    public void Define(string word, string original, Action<string>? use) => Try(() => DefineGate.InvokeFunc(word, original, use), false);
+
+    // A call that can't throw here: TildeTools may be unloading, or its Spelling off
+    private static T Try<T>(Func<T> call, T failed)
     {
         try
         {
-            DefineGate.InvokeFunc(word, original, use);
+            return call();
         }
         catch
         {
+            return failed;
         }
     }
 
