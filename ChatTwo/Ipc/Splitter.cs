@@ -63,8 +63,7 @@ public sealed class Splitter : IDisposable
     // Bumped on every refresh, so a cached split knows the settings behind it changed
     public int Generation { get; private set; }
 
-    // How long the line's parts take to go out, by its channel's pacing
-    // 0 when the splitter's too old to say
+    // How long its parts take to go out, 0 when the splitter's too old to say
     public int PostingMs(string line)
     {
         try

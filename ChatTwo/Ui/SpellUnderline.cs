@@ -188,7 +188,6 @@ public sealed class SpellUnderline
         var learn = ImGui.Selectable("Add to dictionary");
         var ignore = ImGui.Selectable("Ignore for now");
 
-        // Done with the word
         // Asking for suggestions now starts a ~100 ms lookup that the next frame's check waits on
         if (learn || ignore)
         {

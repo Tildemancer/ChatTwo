@@ -109,7 +109,6 @@ public class SendHandler
                     }
 
                     // TildeTools
-                    // Refused: sent anyway a long one's dropped for length and the text's gone, so keep it in the box
                     if (tellTake == SplitTake.Refused || KeptForLength(trimmed))
                         return false;
 
