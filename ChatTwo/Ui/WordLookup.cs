@@ -6,7 +6,7 @@ using Dalamud.Bindings.ImGui;
 
 namespace ChatTwo.Ui;
 
-// A word right-clicked in the log, for Define at the top of the message menu: "That's sophistry, and you know it!"
+// A word clicked in the log, for Define at the top of the message menu: "That's sophistry, and you know it!"
 public static class WordLookup
 {
     // The piece of text clicked and the character under the pointer, read when the menu draws
