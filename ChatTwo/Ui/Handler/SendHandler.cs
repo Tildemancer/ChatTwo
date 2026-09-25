@@ -67,7 +67,7 @@ public class SendHandler
 
             // TildeTools
             // Neither can be split: payload bytes, and the game's tell command
-            if ((tellSpecial || StartsWithTranslationCommand(trimmed)) && KeptForLength(trimmed))
+            if ((tellSpecial || Splitter.StartsWithTranslationCommand(trimmed)) && Splitter.KeptForLength(trimmed))
                 return false;
 
             if (HasTranslationCommand(trimmed))
@@ -107,14 +107,13 @@ public class SendHandler
                     }
 
                     // TildeTools
-                    if (tellTake == SplitTake.Refused || KeptForLength(trimmed))
+                    if (tellTake == SplitTake.Refused || Splitter.KeptForLength(trimmed))
                         return false;
 
                     // ContentId 0 is a case where we can't directly send messages, so we send a /tell formatted message and let the game handle it
                     if (target.ContentId == 0)
                     {
                         trimmed = $"/tell {target.ToTargetString()} {trimmed}";
-
                         var tellBytes = Encoding.UTF8.GetBytes(trimmed);
                         AutoTranslate.ReplaceWithPayload(ref tellBytes);
 
@@ -157,7 +156,7 @@ public class SendHandler
             // TildeTools
             // Must not go out as is
             // False keeps the text, and the caller keeps its temp channel
-            if (take == SplitTake.Refused || take == SplitTake.NotTaken && KeptForLength(trimmed))
+            if (take == SplitTake.Refused || take == SplitTake.NotTaken && Splitter.KeptForLength(trimmed))
                 return false;
 
             if (take == SplitTake.NotTaken)
@@ -172,25 +171,6 @@ public class SendHandler
         activeTab.CurrentChannel.ResetTempChannel();
         chatInput = string.Empty;
         return true;
-    }
-
-    // TildeTools
-    // Over the cap the game drops a line silently, and the text with it, so it stays in the box
-    private static bool KeptForLength(string line)
-    {
-        if (Encoding.UTF8.GetByteCount(line) <= Splitter.DefaultByteCap)
-            return false;
-
-        Plugin.ChatGui.PrintError("[Chat 2] That message is too long to send this way, so it was kept in the box.");
-        return true;
-    }
-
-    // TildeTools
-    // On a copy, StartsWithCommand rewrites what it's given
-    private static bool StartsWithTranslationCommand(string trimmed)
-    {
-        var bytes = Encoding.UTF8.GetBytes(trimmed);
-        return AutoTranslate.StartsWithCommand(ref bytes);
     }
 
     private bool HasTranslationCommand(string trimmed)

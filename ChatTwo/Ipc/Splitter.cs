@@ -1,5 +1,7 @@
 // TildeTools: written for this fork, not part of upstream Chat 2.
 
+using System.Text;
+using ChatTwo.Util;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin.Ipc.Exceptions;
 using static ChatTwo.Ipc.SpellCheck;
@@ -100,6 +102,23 @@ public sealed class Splitter : IDisposable
             Plugin.ChatGui.PrintError("[Chat 2] The splitter hit an error, so that message was kept in the box.");
             return SplitTake.Refused;
         }
+    }
+
+    // Over the cap the game drops a line silently, and the text with it, so it stays in the box
+    public static bool KeptForLength(string line)
+    {
+        if (Encoding.UTF8.GetByteCount(line) <= DefaultByteCap)
+            return false;
+
+        Plugin.ChatGui.PrintError("[Chat 2] That message is too long to send this way, so it was kept in the box.");
+        return true;
+    }
+
+    // On a copy, StartsWithCommand rewrites what it's given
+    public static bool StartsWithTranslationCommand(string trimmed)
+    {
+        var bytes = Encoding.UTF8.GetBytes(trimmed);
+        return AutoTranslate.StartsWithCommand(ref bytes);
     }
 
     public void Dispose() => AvailableGate.Unsubscribe(Refresh);
