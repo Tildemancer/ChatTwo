@@ -30,7 +30,7 @@ public sealed class SpellCheck : IDisposable
     public int Generation { get; private set; }
 
     // Every part of a 32000-byte message, about 67, with room over
-    private const int MostToRemember = 256;
+    internal const int MostToRemember = 256;
 
     public SpellCheck()
     {
@@ -86,7 +86,7 @@ public sealed class SpellCheck : IDisposable
         if (Cached.Count >= MostToRemember)
             Cached.Clear();
 
-        List<Misspelling> result = [];
+        var result = Cached[text] = [];
 
         try
         {
@@ -98,10 +98,8 @@ public sealed class SpellCheck : IDisposable
         catch
         {
             IsAvailable = false;
-            return result;
         }
 
-        Cached[text] = result;
         return result;
     }
 

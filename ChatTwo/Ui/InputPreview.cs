@@ -603,10 +603,6 @@ public partial class InputPreview : Window
     private readonly Dictionary<(string Text, bool Complete, (int Start, int Length)? Body), string?[]> MarksFor = [];
 
     // TildeTools
-    // Every part of a 32000-byte message, about 67, with room over
-    private const int MostMarksToRemember = 256;
-
-    // TildeTools
     private int MarksGeneration;
 
     // TildeTools
@@ -633,7 +629,7 @@ public partial class InputPreview : Window
             return;
         }
 
-        if (MarksFor.Count >= MostMarksToRemember)
+        if (MarksFor.Count >= Ipc.SpellCheck.MostToRemember)
             MarksFor.Clear();
 
         SpellMarks = new string?[text.Length];
