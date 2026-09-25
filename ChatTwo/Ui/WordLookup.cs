@@ -13,6 +13,9 @@ public static class WordLookup
     private static (string Line, int Index) Clicked = ("", -1);
     private static int ClickFrame = -1;
 
+    // The word there, worked out on the menu's first frame rather than every frame it's open
+    private static string? Word;
+
     // Right after a piece of message text is drawn, while it's the current item
     public static unsafe void Watch(byte* text, byte* textEnd)
     {
@@ -21,7 +24,7 @@ public static class WordLookup
 
         // Forgotten once each right-click, so a click on an icon or emote can't bring back the last word
         if (ClickFrame != ImGui.GetFrameCount())
-            (Clicked, ClickFrame) = (("", -1), ImGui.GetFrameCount());
+            (Clicked, ClickFrame, Word) = (("", -1), ImGui.GetFrameCount(), null);
 
         if (!ImGui.IsItemHovered())
             return;
@@ -32,14 +35,16 @@ public static class WordLookup
 
     public static void DrawDefine(SpellCheck spelling)
     {
-        if (!spelling.IsAvailable || spelling.WordAt(Clicked.Line, Clicked.Index) is not var (start, length))
+        if (!spelling.IsAvailable)
             return;
 
-        var word = Clicked.Line.Substring(start, length);
+        Word ??= spelling.WordAt(Clicked.Line, Clicked.Index) is var (start, length) ? Clicked.Line.Substring(start, length) : "";
+        if (Word.Length == 0)
+            return;
 
         // Nothing in the log to replace, so no Use
-        if (ImGui.Selectable($"Define \"{word}\""))
-            spelling.Define(word, word, null);
+        if (ImGui.Selectable($"Define \"{Word}\""))
+            spelling.Define(Word, Word, null);
 
         ImGui.Separator();
     }
