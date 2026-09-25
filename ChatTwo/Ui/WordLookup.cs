@@ -19,10 +19,11 @@ public static class WordLookup
     // Right after a piece of message text is drawn, while it's the current item
     public static unsafe void Watch(byte* text, byte* textEnd)
     {
-        if (!ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+        // A left click on plain text opens the same menu: upstream's LeftClickPayload falls through to RightClickPayload
+        if (!ImGui.IsMouseClicked(ImGuiMouseButton.Right) && !ImGui.IsMouseClicked(ImGuiMouseButton.Left))
             return;
 
-        // Forgotten once each right-click, so a click on an icon or emote can't bring back the last word
+        // Forgotten once each click, so a click on an icon or emote can't bring back the last word
         if (ClickFrame != ImGui.GetFrameCount())
             (Clicked, ClickFrame, Word) = (("", -1), ImGui.GetFrameCount(), null);
 
