@@ -149,9 +149,10 @@ public partial class InputPreview : Window
             }
             else if (chunks[i].Link is EmotePayload && Plugin.Config.ShowEmotes)
             {
-                // TildeTools
-                // Emote payloads add no newline, which breaks non-modern mode
+                // Emote payloads seem to not automatically put newlines, which
+                // is an issue when modern mode is disabled.
                 ImGui.SameLine();
+                // Use default ImGui behavior for newlines.
                 ImGui.TextUnformatted("");
             }
         }
@@ -180,12 +181,11 @@ public partial class InputPreview : Window
             var emoteSize = ImGui.CalcTextSize("W");
             emoteSize = emoteSize with { Y = emoteSize.X } * 1.5f;
 
-            // TildeTools
-            // TextWrap doesn't work for emotes, wrap by hand
+            // TextWrap doesn't work for emotes, so we have to wrap them manually
             if (ImGui.GetContentRegionAvail().X < emoteSize.X)
                 ImGui.NewLine();
 
-            // TildeTools
+            // We only draw a dummy if it is still loading, in case it failed, we draw the actual name
             var image = EmoteCache.GetEmote(emotePayload.Code);
             if (image is { Failed: false })
             {
