@@ -100,7 +100,18 @@ public sealed class SpellCheck : IDisposable
     }
 
     // Null while TildeTools is still looking, the menu asks again next frame
-    public IReadOnlyList<string>? Suggest(string word) => Try(() => SuggestGate.InvokeFunc(word), []);
+    // Its own catch rather than Try: asked every frame the menu is open, and Try's lambda allocates each call
+    public IReadOnlyList<string>? Suggest(string word)
+    {
+        try
+        {
+            return SuggestGate.InvokeFunc(word);
+        }
+        catch
+        {
+            return [];
+        }
+    }
 
     public void AddToDictionary(string word)
     {
