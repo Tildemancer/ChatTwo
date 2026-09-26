@@ -40,22 +40,23 @@ public sealed class SpellUnderline
 
     public (int Start, int End) InputSelection { get; private set; } = (-1, -1);
 
-    private float InputScroll;
+    private float InputOrigin;
 
-    // Must run while the input is current, before the early exits: text with no misspellings still has a selection
     // Scroll off the input's own state, not guessed from the caret, which only pins it at the line's end
     // The state outlives focus, but only an active box draws scrolled or shows its selection
     private unsafe void CaptureInputState()
     {
+        InputOrigin = ImGui.GetItemRectMin().X + ImGui.GetStyle().FramePadding.X;
+
         var state = ImGuiP.GetInputTextState(ImGuiP.GetItemID());
         if (state.IsNull || !ImGui.IsItemActive())
         {
-            (InputSelection, InputScroll) = ((-1, -1), 0f);
+            InputSelection = (-1, -1);
             return;
         }
 
         var (from, to) = (state.Stb.SelectStart, state.Stb.SelectEnd);
-        (InputSelection, InputScroll) = (from == to ? (-1, -1) : (Math.Min(from, to), Math.Max(from, to)), state.ScrollX);
+        (InputSelection, InputOrigin) = (from == to ? (-1, -1) : (Math.Min(from, to), Math.Max(from, to)), InputOrigin - state.ScrollX);
     }
 
     // Call immediately after the input, while it's the current item
@@ -74,17 +75,18 @@ public sealed class SpellUnderline
             UnderlineInput(text, misspellings);
 
         // AllowWhenBlockedByPopup: the menu, still open on the press, reopens on the release with whatever this latched
-        if (!ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup) || !ImGui.IsMouseClicked(ImGuiMouseButton.Right))
-            return;
+        // A block, not an early return: the lambda's capture of index would allocate every frame
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup) && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+        {
+            var index = IndexAt(text, ImGui.GetIO().MousePos.X - InputOrigin);
 
-        var index = IndexAt(text, ImGui.GetIO().MousePos.X - (ImGui.GetItemRectMin().X + ImGui.GetStyle().FramePadding.X - InputScroll));
-
-        if (misspellings.FirstOrDefault(m => index >= m.Start && index < m.Start + m.Length) is { Length: > 0 } hit)
-            SetPendingWord(hit.Word(text), hit.Start);
-        else if (Plugin.SpellCheck.WordAt(text, index) is var (start, length))
-            SetPendingWord(text.Substring(start, length), start, misspelled: false);
-        else
-            PendingWord = string.Empty;
+            if (misspellings.FirstOrDefault(m => index >= m.Start && index < m.Start + m.Length) is { Length: > 0 } hit)
+                SetPendingWord(hit.Word(text), hit.Start);
+            else if (Plugin.SpellCheck.WordAt(text, index) is var (start, length))
+                SetPendingWord(text.Substring(start, length), start, misspelled: false);
+            else
+                PendingWord = string.Empty;
+        }
     }
 
     internal static int IndexAt(string text, float x)
@@ -112,7 +114,6 @@ public sealed class SpellUnderline
     {
         var min = ImGui.GetItemRectMin();
         var size = ImGui.GetItemRectSize();
-        var origin = min.X + ImGui.GetStyle().FramePadding.X - InputScroll;
         var thick = Thickness * ImGuiHelpers.GlobalScale;
 
         // Under the text, never past the box. Scaled-up small padding would hang it outside
@@ -132,8 +133,8 @@ public sealed class SpellUnderline
             if (float.IsNaN(offset))
                 continue;
 
-            var left = Math.Max(origin + offset, min.X);
-            var right = Math.Min(origin + offset + width, min.X + size.X);
+            var left = Math.Max(InputOrigin + offset, min.X);
+            var right = Math.Min(InputOrigin + offset + width, min.X + size.X);
             if (right <= left)
                 continue;
 
@@ -259,7 +260,7 @@ public sealed class SpellUnderline
             ImGui.SetWindowPos(fit);
     }
 
-    public static string ReplaceWord(string text, string word, string replacement, int at)
+    private static string ReplaceWord(string text, string word, string replacement, int at)
     {
         if (at < 0 || at + word.Length > text.Length || string.CompareOrdinal(text, at, word, 0, word.Length) != 0)
             for (at = text.IndexOf(word, StringComparison.Ordinal); at >= 0; at = text.IndexOf(word, at + 1, StringComparison.Ordinal))
