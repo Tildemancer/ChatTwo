@@ -102,7 +102,8 @@ public class SendHandler
                 {
                     // TildeTools
                     // Any length, one that fits can carry a break marker
-                    // Not one in a foray or to a Party Finder contact, which upstream sends by content id (untested)
+                    // Not one in a foray or to a Party Finder contact, which upstream sends by content id
+                    // I haven't tried /tell to either
                     var tellLine = $"/tell {target.ToTargetString()} {trimmed}";
                     var tellTake = target.ContentId != 0 && (Sheets.IsInForay() || target.Reason == TellReason.PartyFinder)
                         ? SplitTake.NotTaken
