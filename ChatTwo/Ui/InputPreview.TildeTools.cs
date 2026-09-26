@@ -183,11 +183,11 @@ public partial class InputPreview
         return (Basis.Leading, Basis.Prefix);
     }
 
-    private Vector2 KeepOnScreen(Vector2 wanted, Vector2 windowPos, float windowWidth, float previewWidth)
+    private Vector2 KeepOnScreen(float y, Vector2 windowPos, float windowWidth, float previewWidth)
     {
         var screen = ImGui.GetIO().DisplaySize;
-        if (wanted.Y >= 0 && wanted.Y + PreviewHeight <= screen.Y)
-            return wanted;
+        if (y >= 0 && y + PreviewHeight <= screen.Y)
+            return windowPos with { Y = y };
 
         var right = windowPos.X + windowWidth;
         var x = right + previewWidth <= screen.X || windowPos.X < previewWidth ? right : windowPos.X - previewWidth;

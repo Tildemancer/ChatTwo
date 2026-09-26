@@ -124,7 +124,7 @@ public partial class InputPreview : Window
         };
 
         // TildeTools
-        Position = KeepOnScreen(pos with { Y = y }, pos, size.X, width);
+        Position = KeepOnScreen(y, pos, size.X, width);
         // TildeTools ends
         PositionCondition = ImGuiCond.Always;
     }
