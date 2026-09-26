@@ -200,7 +200,10 @@ public static class EmoteCache
             catch (Exception ex)
             {
                 Failed = true;
-                Plugin.Log.Error(ex, $"Unable to load {emote.Code} with id {emote.Id}");
+                // TildeTools
+                // Debug, not Error: an emote image Dalamud can't decode, red in the log every load
+                Plugin.Log.Debug(ex, $"Unable to load {emote.Code} with id {emote.Id}");
+                // TildeTools ends
             }
         }
 
@@ -290,7 +293,10 @@ public static class EmoteCache
             catch (Exception ex)
             {
                 Failed = true;
-                Plugin.Log.Error(ex, $"Unable to load {emote.Code} with id {emote.Id}");
+                // TildeTools
+                // Debug, as in ImGuiEmote.Load
+                Plugin.Log.Debug(ex, $"Unable to load {emote.Code} with id {emote.Id}");
+                // TildeTools ends
             }
         }
     }
