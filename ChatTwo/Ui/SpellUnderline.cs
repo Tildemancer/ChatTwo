@@ -1,6 +1,7 @@
 // TildeTools: written for this fork, not part of upstream Chat 2.
 
 using System.Numerics;
+using System.Text;
 using ChatTwo.Ipc;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
@@ -79,14 +80,37 @@ public sealed class SpellUnderline
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup) && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
         {
             var index = IndexAt(text, ImGui.GetIO().MousePos.X - InputOrigin);
+            var (from, to) = Selected(text);
 
-            if (misspellings.FirstOrDefault(m => index >= m.Start && index < m.Start + m.Length) is { Length: > 0 } hit)
+            // A highlighted stretch goes whole, a name or a phrase
+            if (index >= from && index < to)
+                SetPendingWord(text[from..to], from, misspellings.Any(m => m.Start == from && m.Length == to - from));
+            else if (misspellings.FirstOrDefault(m => index >= m.Start && index < m.Start + m.Length) is { Length: > 0 } hit)
                 SetPendingWord(hit.Word(text), hit.Start);
             else if (Plugin.SpellCheck.WordAt(text, index) is var (start, length))
                 SetPendingWord(text.Substring(start, length), start, misspelled: false);
             else
                 PendingWord = string.Empty;
         }
+    }
+
+    // In chars, as the text is, where the box counts bytes
+    // Trimmed to its letters, like a word
+    private (int From, int To) Selected(string text)
+    {
+        if (InputSelection.Start < 0)
+            return (-1, -1);
+
+        var bytes = Encoding.UTF8.GetBytes(text);
+        var (from, to) = (Encoding.UTF8.GetCharCount(bytes, 0, Math.Min(InputSelection.Start, bytes.Length)), Encoding.UTF8.GetCharCount(bytes, 0, Math.Min(InputSelection.End, bytes.Length)));
+
+        while (from < to && !char.IsLetterOrDigit(text[from]))
+            from++;
+
+        while (to > from && !char.IsLetterOrDigit(text[to - 1]))
+            to--;
+
+        return from < to ? (from, to) : (-1, -1);
     }
 
     internal static int IndexAt(string text, float x)
