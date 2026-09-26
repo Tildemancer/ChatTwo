@@ -13,8 +13,6 @@ using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Windowing;
-using Dalamud.Plugin.Services;
 using Dalamud.Bindings.ImGui;
 
 namespace ChatTwo.Ui;
@@ -43,10 +41,7 @@ public partial class InputPreview
     // Only the body is tokenized, about 0.3 ms per 500 characters, and the affixes around it stay plain text
     private Message BuildPart(string part, (int Start, int Length)? span, Dictionary<string, List<Chunk>> kept)
     {
-        // No usable span, so the whole part is the body
-        var (start, end) = span is { } body && body.Start >= 0 && body.Start + body.Length <= part.Length
-            ? (body.Start, body.Start + body.Length)
-            : (0, part.Length);
+        var (start, end) = BodyRange(span, part.Length);
 
         // The body takes the space before the suffix, so its words are the ones one parse of the part gives
         if (end < part.Length && part[end] == ' ')
@@ -65,6 +60,10 @@ public partial class InputPreview
             ChunkUtil.ToChunks(new SeString(new TextPayload(affix)), ChunkSource.Content, ChatType.Say);
     }
 
+    // No usable span, so the whole part is the body
+    private static (int Start, int End) BodyRange((int Start, int Length)? span, int length) =>
+        span is { Start: >= 0 } s && s.Start + s.Length <= length ? (s.Start, s.Start + s.Length) : (0, length);
+
     private List<string>? SplitParts;
     private List<Message>? SplitMessages;
     private List<(int Start, int Length)> SplitBodies = [];
@@ -82,7 +81,6 @@ public partial class InputPreview
         SplitParts = null;
         SplitMessages = null;
         SplitHasEvaluation = false;
-        SplitBodies = [];
 
         if (!InputHandler.Plugin.Splitter.IsAvailable || line.Length == 0)
             return;
@@ -92,8 +90,8 @@ public partial class InputPreview
             return;
 
         SplitBodies = InputHandler.Plugin.Splitter.BodySpans(line);
-        var seconds = InputHandler.Plugin.Splitter.PostingMs(line) / 1000f;
-        SplitHeader = seconds >= 1f ? $"Will be sent as {parts.Count} messages, over about {seconds:0.#} seconds:" : $"Will be sent as {parts.Count} messages:";
+        var seconds = MathF.Round(InputHandler.Plugin.Splitter.PostingMs(line) / 1000f, 1);
+        SplitHeader = seconds >= 1f ? $"Will be sent as {parts.Count} parts, over about {seconds:0.#} second{(seconds == 1f ? "" : "s")}:" : $"Will be sent as {parts.Count} parts:";
 
         // The last split's bodies by text, unless the emotes have changed since: switched, loaded or blocked
         // When the count moves, #m changes every part but not its body
@@ -167,7 +165,7 @@ public partial class InputPreview
         return index >= 0 && index < InputHandler.ChatInput.Length ? index : -1;
     }
 
-    // Once per text, not per letter: SourceIndexOf runs for every drawn letter, and Trim copies the whole input
+    // Once per text: SourceIndexOf runs per letter while selecting, and Trim copies the whole input
     private (string Typed, string Composed, int Leading, int Prefix) Basis = ("", "", 0, 0);
 
     private (int Leading, int Prefix) MapBasis()
@@ -177,7 +175,7 @@ public partial class InputPreview
         if (ReferenceEquals(typed, Basis.Typed) && ReferenceEquals(composed, Basis.Composed))
             return (Basis.Leading, Basis.Prefix);
 
-        // ComposeLine only ever prepends, and always to the TRIMMED input, so the gap
+        // ComposeLine only ever prepends, and always to the trimmed input, so the gap
         // between the two is fixed and the leading spaces have to be added back.
         Basis = (typed, composed, typed.Length - typed.TrimStart().Length, composed.Length - typed.Trim().Length);
         return (Basis.Leading, Basis.Prefix);
@@ -206,6 +204,8 @@ public partial class InputPreview
 
     // Measuring lays the whole preview out invisibly, as costly as drawing it. Selection and hover don't move text
     // Face too: Plugin.Draw's font can change at the same size
+    // Not keyed: the style, and an emote image failing after the measure
+    // Either way the next keystroke measures again
     private (Message? Preview, List<Message>? Parts, float Window, bool WindowMode, float Screen, ImFontPtr Face, float Font, bool Emotes)? MeasuredFor;
 
     public void CalculatePreview()
@@ -217,9 +217,6 @@ public partial class InputPreview
 
         MeasuredFor = key;
 
-        // We Pre-draw this once to get the actual height :HideThePain:
-        PreviewHeight = 0;
-
         var sidePadding = ImGui.GetStyle().WindowPadding.X * 2;
         ColumnWidth = Math.Max(120f, InputHandler.MainWindow.LastWindowSize.X - sidePadding);
         PreviewWidth = ColumnWidth + sidePadding;
@@ -227,6 +224,7 @@ public partial class InputPreview
 
         var padding = IsWindowMode ? ImGui.GetStyle().WindowPadding.Y * 2 : 0;
 
+        // We Pre-draw this once to get the actual height :HideThePain:
         if (SplitMessages is null)
             PreviewHeight = MeasureColumn(() =>
             {
@@ -272,7 +270,7 @@ public partial class InputPreview
 
         for (var i = 0; i < heights.Count; i++)
         {
-            // A part taller than the screen overflows its column rather than looping forever
+            // A part taller than the screen overflows its own column, no empty one before it
             if (current.Count > 0 && used + heights[i] > available)
             {
                 Columns.Add(current = []);
@@ -285,7 +283,7 @@ public partial class InputPreview
         }
 
         PreviewHeight = Math.Min(tallest, available) + padding;
-        PreviewWidth = ColumnWidth * Columns.Count + ImGui.GetStyle().WindowPadding.X * 2;
+        PreviewWidth += ColumnWidth * (Columns.Count - 1);
     }
 
     // Column width, since text wraps against the region it's drawn in
@@ -316,6 +314,52 @@ public partial class InputPreview
 
     public void DrawPreview()
     {
+        FinishDrag();
+
+        using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
+        {
+            if (SplitMessages is null)
+            {
+                ImGui.TextUnformatted(Language.Options_Preview_Header);
+                DrawChunksPreview(PreviewMessage!.Content, InputHandler.PayloadHandler);
+            }
+            // Columns are packed in every mode, only a Top or Bottom window draws them
+            else if (!IsWindowMode)
+            {
+                ImGui.TextDisabled(SplitHeader);
+
+                for (var i = 0; i < SplitMessages.Count; i++)
+                    DrawSplitPart(i, InputHandler.PayloadHandler);
+            }
+            else
+            {
+                var height = ImGui.GetContentRegionAvail().Y;
+
+                for (var c = 0; c < Columns.Count; c++)
+                {
+                    if (c > 0)
+                        ImGui.SameLine(0, 0);
+
+                    using var child = ImRaii.Child($"##preview-col{c}", new Vector2(ColumnWidth, height), false,
+                        ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+
+                    if (!child)
+                        continue;
+
+                    if (c == 0)
+                        ImGui.TextDisabled(SplitHeader);
+
+                    foreach (var part in Columns[c])
+                        DrawSplitPart(part, InputHandler.PayloadHandler);
+                }
+            }
+        }
+
+        DrawSpellingPopup();
+    }
+
+    private void FinishDrag()
+    {
         // A drag the preview wasn't drawn for, hidden in combat say, is dropped rather than committed on return
         var frame = ImGui.GetFrameCount();
         if (LastDrawFrame < frame - 1)
@@ -323,7 +367,7 @@ public partial class InputPreview
 
         LastDrawFrame = frame;
 
-        // Finished here, not in the letter loop: the button can come up anywhere. Handed over on
+        // Finished here, not in PointAt: the button can come up anywhere. Handed over on
         // release, per frame it drags focus into the box
         if (DragAnchor >= 0 && !ImGui.IsMouseDown(ImGuiMouseButton.Left))
         {
@@ -334,51 +378,8 @@ public partial class InputPreview
                 InputHandler.FocusedPreview = true;
             }
 
-            DragAnchor = -1;
-            DragHead = -1;
+            DragAnchor = DragHead = -1;
         }
-
-        if (SplitMessages is null)
-        {
-            using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
-            ImGui.TextUnformatted(Language.Options_Preview_Header);
-            DrawChunksPreview(PreviewMessage!.Content, InputHandler.PayloadHandler);
-        }
-        // A tooltip sizes itself, so one column. Window-mode columns linger after switching, so check the mode too
-        else if (!IsWindowMode || Columns.Count == 0)
-        {
-            using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
-            ImGui.TextDisabled(SplitHeader);
-
-            for (var i = 0; i < SplitMessages.Count; i++)
-                DrawSplitPart(i, InputHandler.PayloadHandler);
-        }
-        else
-        {
-            var height = ImGui.GetContentRegionAvail().Y;
-
-            for (var c = 0; c < Columns.Count; c++)
-            {
-                if (c > 0)
-                    ImGui.SameLine(0, 0);
-
-                using var child = ImRaii.Child($"##preview-col{c}", new Vector2(ColumnWidth, height), false,
-                    ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
-
-                if (!child)
-                    continue;
-
-                using var style = ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
-
-                if (c == 0)
-                    ImGui.TextDisabled(SplitHeader);
-
-                foreach (var part in Columns[c])
-                    DrawSplitPart(part, InputHandler.PayloadHandler);
-            }
-        }
-
-        DrawSpellingPopup();
     }
 
     // Built once per source, per letter would be a cross-plugin call each
@@ -416,14 +417,7 @@ public partial class InputPreview
         MarksFor[key] = SpellMarks;
 
         // Only the typed slice, our markers come back as misspellings otherwise
-        var from = 0;
-        var to = text.Length;
-
-        if (body is { } span && span.Length > 0 && span.Start >= 0 && span.Start + span.Length <= text.Length)
-        {
-            from = span.Start;
-            to = span.Start + span.Length;
-        }
+        var (from, to) = body is { Length: > 0 } ? BodyRange(body, text.Length) : (0, text.Length);
 
         // Padded only for the check. Unfinished, cut at the body's end instead: on the last part the
         // final character is ours ("]" or an OOC bracket), so every word looked finished
@@ -445,9 +439,7 @@ public partial class InputPreview
 
     // Same rule as the checker. Whitespace alone missed a closing OOC bracket, which the splitter lifts off
     private static bool FinishedTyping(string typed) =>
-        typed.Length > 0 &&
-        (char.IsWhiteSpace(typed[^1]) ||
-         (char.IsPunctuation(typed[^1]) && typed[^1] is not ('\'' or '-')));
+        typed is [.., var last] && (char.IsWhiteSpace(last) || char.IsPunctuation(last) && last is not ('\'' or '-'));
 
     private string? MisspelledWordAt(int position) =>
         position >= 0 && position < SpellMarks.Length ? SpellMarks[position] : null;
@@ -506,7 +498,6 @@ public partial class InputPreview
             var wordSize = ImGui.CalcTextSize(word);
 
             // Trailing spaces ride along, but only the word has to fit, as in any wrapped text
-            // The whole first, so the trimmed word is only measured when it might not fit
             var room = ImGui.GetContentRegionAvail().X;
             if (room < wordSize.X && room < ImGui.CalcTextSize(word.AsSpan().TrimEnd()).X)
                 ImGui.NewLine();
@@ -518,7 +509,6 @@ public partial class InputPreview
             var size = wordSize with { X = Math.Max(wordSize.X, 1f) };
 
             // Layout is all that counts in the measuring child, a pixel tall and taking no input
-            // Nothing interactive while measuring, duplicate ids would fight the real draw
             // Only the measure pass has no handler
             if (handler is null)
             {
@@ -614,7 +604,7 @@ public partial class InputPreview
                 DragHead = boundary;
         }
 
-        // A press and release on the same letter is a click, as each letter's Selectable had it
+        // Press and release on the same letter is a click
         if (released && caret >= 0 && caret == PressedCaret)
         {
             SelectedRange ??= (ByteIndex(caret), ByteIndex(caret));
