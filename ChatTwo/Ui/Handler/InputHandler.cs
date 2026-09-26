@@ -69,10 +69,6 @@ public class InputHandler
 
     public void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial)
     {
-        // TildeTools
-        ComposedLine = SendHandler.ComposeLine(activeTab, ChatInput);
-        // TildeTools ends
-
         var inputType = activeTab.CurrentChannel.UseTempChannel
             ? activeTab.CurrentChannel.TempChannel.ToChatType()
             : activeTab.CurrentChannel.Channel.ToChatType();
@@ -197,6 +193,11 @@ public class InputHandler
                 }
             }
         }
+
+        // TildeTools
+        // Last, so InputPreview's next update splits the text this frame left in the box
+        ComposedLine = SendHandler.ComposeLine(activeTab, ChatInput);
+        // TildeTools ends
     }
 
     private bool IsValidCommand(string command)
