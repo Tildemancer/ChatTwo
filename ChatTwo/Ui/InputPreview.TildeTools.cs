@@ -97,7 +97,8 @@ public partial class InputPreview
 
         // The last split's bodies by text, unless the emotes have changed since: switched, loaded or blocked
         // When the count moves, #m changes every part but not its body
-        var emotes = (Plugin.Config.ShowEmotes, EmoteCache.State, Plugin.Config.BlockedEmotes.Count);
+        // By content, not Count: the settings edit this set in place, so swapping one for another kept the count
+        var emotes = (Plugin.Config.ShowEmotes, EmoteCache.State, Plugin.Config.BlockedEmotes.Aggregate(0, (hash, emote) => hash ^ emote.GetHashCode()));
         var kept = ParsedWithEmotes == emotes ? ParsedBodies : [];
         ParsedBodies = [];
         ParsedWithEmotes = emotes;
