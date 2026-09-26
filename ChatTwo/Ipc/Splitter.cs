@@ -24,7 +24,7 @@ public sealed class Splitter : IDisposable
 {
     public const int DefaultByteCap = 500;
 
-    private const int RequiredApiVersion = 1;
+    private const int RequiredApiVersion = 2;
 
     private readonly ICallGateSubscriber<int> ApiVersionGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.ApiVersion");
     private readonly ICallGateSubscriber<int> InputByteCapGate = Plugin.Interface.GetIpcSubscriber<int>("TildeTools.Split.InputByteCap");
