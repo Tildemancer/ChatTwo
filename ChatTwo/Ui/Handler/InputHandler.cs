@@ -114,7 +114,8 @@ public class InputHandler
                 ImGui.SetNextItemWidth(inputWidth);
                 // TildeTools
                 // 500 unless a splitter raises it, then cutting it up is the splitter's job
-                ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, Plugin.Splitter.InputByteCap, flags, Callback);
+                // Never under the text already there, which activating the box would cut to fit
+                ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, Math.Max(Plugin.Splitter.InputByteCap, System.Text.Encoding.UTF8.GetByteCount(ChatInput)), flags, Callback);
 
                 Spelling.DrawForInput(ref ChatInput);
                 // TildeTools ends
