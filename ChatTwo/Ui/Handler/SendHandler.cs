@@ -101,9 +101,12 @@ public class SendHandler
                 if (target != null)
                 {
                     // TildeTools
-                    // Every tell, one that fits can carry a break marker
+                    // Any length, one that fits can carry a break marker
+                    // Not one in a foray or to a Party Finder contact, which upstream sends by content id (untested)
                     var tellLine = $"/tell {target.ToTargetString()} {trimmed}";
-                    var tellTake = Plugin.Splitter.Offer(tellLine);
+                    var tellTake = target.ContentId != 0 && (Sheets.IsInForay() || target.Reason == TellReason.PartyFinder)
+                        ? SplitTake.NotTaken
+                        : Plugin.Splitter.Offer(tellLine);
 
                     if (tellTake == SplitTake.Queued)
                     {
