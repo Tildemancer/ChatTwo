@@ -138,8 +138,10 @@ public class MessageStore : IDisposable
         Connection.Close();
         Connection.Dispose();
         // Closing the connection doesn't immediately release the file.
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
+        // TildeTools
+        // Clearing the pool does, where a forced full collection froze the game on every stop, longer the longer it ran
+        SqliteConnection.ClearAllPools();
+        // TildeTools ends
     }
 
     private SqliteConnection Connect()
