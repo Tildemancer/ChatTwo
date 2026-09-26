@@ -113,7 +113,9 @@ public partial class InputPreview : Window
 
         // TildeTools
         var width = PreviewWidth > 0 ? PreviewWidth : size.X;
-        Size = new Vector2(width, PreviewHeight);
+
+        // Measured in pixels, and Window scales Size by the global scale again
+        Size = new Vector2(width, PreviewHeight) / Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale;
         // TildeTools ends
 
         var y = Plugin.Config.PreviewPosition switch
