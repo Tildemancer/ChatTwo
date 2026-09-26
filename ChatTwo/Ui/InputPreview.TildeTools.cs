@@ -204,14 +204,15 @@ public partial class InputPreview
 
     // Measuring lays the whole preview out invisibly, as costly as drawing it. Selection and hover don't move text
     // Face too: Plugin.Draw's font can change at the same size
-    // Not keyed: the style, and an emote image failing after the measure
+    // The UI scale too: it changes the style's padding and spacing without always changing the font
+    // Not keyed: other style edits, and an emote image failing after the measure
     // Either way the next keystroke measures again
-    private (Message? Preview, List<Message>? Parts, float Window, bool WindowMode, float Screen, ImFontPtr Face, float Font, bool Emotes)? MeasuredFor;
+    private (Message? Preview, List<Message>? Parts, float Window, bool WindowMode, float Screen, ImFontPtr Face, float Font, float Scale, bool Emotes)? MeasuredFor;
 
     public void CalculatePreview()
     {
         var key = (PreviewMessage, SplitMessages, InputHandler.MainWindow.LastWindowSize.X,
-            IsWindowMode, ImGui.GetIO().DisplaySize.Y, ImGui.GetFont(), ImGui.GetFontSize(), Plugin.Config.ShowEmotes);
+            IsWindowMode, ImGui.GetIO().DisplaySize.Y, ImGui.GetFont(), ImGui.GetFontSize(), ImGuiHelpers.GlobalScale, Plugin.Config.ShowEmotes);
         if (MeasuredFor == key)
             return;
 
