@@ -183,15 +183,19 @@ public partial class InputPreview
         return (Basis.Leading, Basis.Prefix);
     }
 
+    // Against the game's viewport, which multi-monitor windows can move off the desktop origin
+    // A chat window on another monitor keeps upstream's placement
     private Vector2 KeepOnScreen(float y, Vector2 windowPos, float windowWidth, float previewWidth)
     {
-        var screen = ImGui.GetIO().DisplaySize;
-        if (y >= 0 && y + PreviewHeight <= screen.Y)
+        var main = ImGuiHelpers.MainViewport;
+        var (low, high) = (main.Pos, main.Pos + main.Size);
+
+        if (Vector2.Clamp(windowPos, low, high) != windowPos || y >= low.Y && y + PreviewHeight <= high.Y)
             return windowPos with { Y = y };
 
         var right = windowPos.X + windowWidth;
-        var x = right + previewWidth <= screen.X || windowPos.X < previewWidth ? right : windowPos.X - previewWidth;
-        return new Vector2(Math.Clamp(x, 0, Math.Max(0, screen.X - previewWidth)), Math.Clamp(windowPos.Y, 0, Math.Max(0, screen.Y - PreviewHeight)));
+        var x = right + previewWidth <= high.X || windowPos.X - low.X < previewWidth ? right : windowPos.X - previewWidth;
+        return Vector2.Clamp(new Vector2(x, windowPos.Y), low, Vector2.Max(low, high - new Vector2(previewWidth, PreviewHeight)));
     }
 
     private float ColumnWidth;
