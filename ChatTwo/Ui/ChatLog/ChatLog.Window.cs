@@ -383,7 +383,7 @@ public partial class ChatLog : Window, IChatWindow
             Plugin.InputPreview.DrawPreview();
 
         using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
-            DrawChannelName(activeTab);
+            DrawChannelName(activeTab, true);
 
         if (ImGuiUtil.IconButton(FontAwesomeIcon.Comment) && activeTab.Channel is null)
             ImGui.OpenPopup(ChatChannelPicker);
