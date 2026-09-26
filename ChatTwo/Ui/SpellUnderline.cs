@@ -241,7 +241,7 @@ public sealed class SpellUnderline
         if (suggestions is null)
             ImGui.TextDisabled("Looking for corrections...");
         else
-            for (var i = 0; i < Math.Min(8, suggestions.Count); i++)
+            for (var i = 0; i < suggestions.Count; i++)
                 if (ImGui.Selectable(suggestions[i]))
                     text = ReplaceWord(text, PendingWord, suggestions[i], PendingAt);
 
