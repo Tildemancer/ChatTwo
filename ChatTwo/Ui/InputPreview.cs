@@ -60,11 +60,7 @@ public partial class InputPreview : Window
         if (!Drawing)
         {
             // TildeTools
-            LastInput = string.Empty;
-            PreviewHeight = 0;
-
-            // Height was just zeroed, so remeasure even for the same text
-            MeasuredFor = null;
+            PreviewHeight = PreviewWidth = 0;
             // TildeTools ends
             PreviewMessage = null;
             HasEvaluation = false;
@@ -82,9 +78,14 @@ public partial class InputPreview : Window
             // Parsed, it cost 28-35 ms at 18k characters: ReplaceWithPayload copies bytes[i..] at every byte
             PreviewMessage = BuildMessage(Encoding.UTF8.GetByteCount(LastTrimmed) > Ipc.Splitter.DefaultByteCap ? string.Empty : LastTrimmed);
         }
-        // TildeTools ends
 
-        // TildeTools
+        // Nothing draws it, so it isn't split, marked or measured
+        if (Plugin.Config.PreviewPosition is PreviewPosition.None)
+        {
+            HasEvaluation = false;
+            return;
+        }
+
         UpdateSplitParts();
 
         // A trailing space is the checker's done-signal, and Trim would throw it away
