@@ -89,7 +89,7 @@ public partial class InputPreview : Window
 
         // A trailing space is the checker's done-signal, and Trim would throw it away
         // Split, each part marks itself: the whole text's marks were a 144 KB array a keystroke at 18k, never drawn
-        if (SplitMessages is null)
+        if (SplitMessages is null && PreviewMessage.Content.Count > 0)
             SetSpellSource(LastTrimmed, complete: char.IsWhiteSpace(InputHandler.ChatInput[^1]));
         else
             SpellMarks = [];
