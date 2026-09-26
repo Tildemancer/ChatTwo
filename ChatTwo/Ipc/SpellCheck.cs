@@ -29,11 +29,16 @@ public sealed class SpellCheck : IDisposable
     // Many, not one: a split message is checked a part at a time, so one slot means each part evicts the last
     private readonly Dictionary<string, List<Misspelling>> Cached = [];
 
-    // Moves when answers change (new dictionary, word added or ignored). Drop remembered results when it does
+    // Moves when answers change: a new dictionary, a word added or ignored
+    // Drop remembered results when it does
     public int Generation { get; private set; }
 
     // Every part of a 32000-byte message, about 67, with room over
     internal const int MostToRemember = 256;
+
+    // Each keystroke adds the whole input too: 36 KB a snapshot at 18000
+    private const int MostCharacters = 65536;
+    private int CachedCharacters;
 
     public SpellCheck()
     {
@@ -43,10 +48,12 @@ public sealed class SpellCheck : IDisposable
 
     public bool IsAvailable { get; private set; }
 
+    // Also after a word is added or ignored, see SpellIpc.Announce
     private void OnAvailable()
     {
         IsAvailable = Try(() => ApiVersionGate.InvokeFunc() >= RequiredApiVersion, false);
         Cached.Clear();
+        CachedCharacters = 0;
         Generation++;
     }
 
@@ -66,17 +73,27 @@ public sealed class SpellCheck : IDisposable
         if (Cached.TryGetValue(text, out var remembered))
             return remembered;
 
-        if (Cached.Count >= MostToRemember)
+        if (Cached.Count >= MostToRemember || CachedCharacters > MostCharacters)
+        {
             Cached.Clear();
+            CachedCharacters = 0;
+        }
 
+        CachedCharacters += text.Length;
         var result = Cached[text] = [];
 
-        // Flattened: start, length, start, length
-        if (Try<List<int>?>(() => CheckGate.InvokeFunc(text), null) is { } flat)
+        // Not Try: its lambda captures text, so every call allocated, cache hits too
+        try
+        {
+            // Flattened: start, length, start, length
+            var flat = CheckGate.InvokeFunc(text);
             for (var i = 0; i + 1 < flat.Count; i += 2)
                 result.Add(new Misspelling(flat[i], flat[i + 1]));
-        else
+        }
+        catch
+        {
             IsAvailable = false;
+        }
 
         return result;
     }
@@ -95,20 +112,11 @@ public sealed class SpellCheck : IDisposable
         }
     }
 
-    public void AddToDictionary(string word)
-    {
-        Try(() => AddGate.InvokeFunc(word), false);
-        Cached.Clear();
-        Generation++;
-    }
+    public void AddToDictionary(string word) => Try(() => AddGate.InvokeFunc(word), false);
 
-    // Until restart, without learning it. Filtered in the checker, so every box agrees
-    public void Ignore(string word)
-    {
-        Try(() => IgnoreGate.InvokeFunc(word), false);
-        Cached.Clear();
-        Generation++;
-    }
+    // Until restart, without learning it
+    // Filtered in the checker, so every box agrees
+    public void Ignore(string word) => Try(() => IgnoreGate.InvokeFunc(word), false);
 
     public (int Start, int Length)? WordAt(string text, int index) =>
         Try<(int, int)?>(() => WordAtGate.InvokeFunc(text, index) is [var start, var length] ? (start, length) : null, null);
