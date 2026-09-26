@@ -67,7 +67,7 @@ public sealed class About : ISettingsTab
         // No support links on a modified build
         if (Hosting.IsHosted)
         {
-            ImGui.TextColored(ImGuiColors.DalamudOrange, "This is a modified build running inside another plugin. Please do not report problems with it to Chat 2's maintainers, they did not write these changes.");
+            ImGui.TextColored(ImGuiColors.DalamudOrange, "This is a modified build running inside another plugin. Please do not report problems with it to Chat 2's maintainers. They did not write these changes.");
         }
         else
         {

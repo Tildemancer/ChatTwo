@@ -43,15 +43,12 @@ public sealed class SettingsWindow : Window
             new Database(Plugin, Mutable),
             new Webinterface(Plugin, Mutable),
             new Miscellaneous(Mutable),
-            // TildeTools: Changelog is inserted below, when not hosted
+            // TildeTools
+            // Hosted, the changelog's manifest is ours, so the tab would be empty and mislabelled
+            .. Hosting.IsHosted ? [] : new ISettingsTab[] { new Changelog(Mutable) },
+            // TildeTools ends
             new About()
         ];
-
-        // TildeTools
-        // Hosted, the changelog's manifest is ours, so the tab would be empty and mislabelled
-        if (!Hosting.IsHosted)
-            Tabs.Insert(Tabs.Count - 1, new Changelog(Mutable));
-        // TildeTools ends
 
         RespectCloseHotkey = false;
         DisableWindowSounds = true;

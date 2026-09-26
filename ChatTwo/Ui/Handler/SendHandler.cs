@@ -168,7 +168,6 @@ public class SendHandler
             var take = Plugin.Splitter.Offer(trimmed);
 
             // Must not go out as is
-            // False keeps the text, and the caller keeps its temp channel
             if (take == SplitTake.Refused || take == SplitTake.NotTaken && Splitter.KeptForLength(trimmed))
                 return false;
 
