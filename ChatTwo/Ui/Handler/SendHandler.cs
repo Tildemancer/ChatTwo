@@ -102,7 +102,8 @@ public class SendHandler
                 {
                     // TildeTools
                     // Every tell, one that fits can carry a break marker
-                    var tellTake = Plugin.Splitter.Offer($"/tell {target.ToTargetString()} {trimmed}");
+                    var tellLine = $"/tell {target.ToTargetString()} {trimmed}";
+                    var tellTake = Plugin.Splitter.Offer(tellLine);
 
                     if (tellTake == SplitTake.Queued)
                     {
@@ -111,7 +112,7 @@ public class SendHandler
                         return true;
                     }
 
-                    if (tellTake == SplitTake.Refused || Splitter.KeptForLength(trimmed))
+                    if (tellTake == SplitTake.Refused || Splitter.KeptForLength(target.ContentId == 0 ? tellLine : trimmed))
                         return false;
                     // TildeTools ends
 
