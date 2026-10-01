@@ -30,6 +30,11 @@ public partial class ChatLog : Window, IChatWindow
     public bool TellSpecial;
     private readonly Stopwatch LastResize = new();
 
+    // TildeTools
+    // Per tab, last frame's spacer over the history above the view, which the next frame steps over.
+    private readonly Dictionary<Guid, (Message Opener, Message Last, int End, float Tail)> SpacerJumps = [];
+    // TildeTools ends
+
     // Used to detect channel changes for the webinterface
     public Chunk[] PreviousChannel = [];
 
@@ -670,6 +675,32 @@ public partial class ChatLog : Window, IChatWindow
             int? lastMessageHash = null;
             var sameCount = 0;
 
+            // TildeTools
+            // Off-screen messages with known heights share one spacer row! Only what's on screen gets drawn! Now we can afford to have a hundred thousand lines of history, a million, with no overhead! Okay, a little facetious, but DrawMessages dropped from 1.36 ms to 0.10 ms @ 9k lines.
+            // Blessings of performance be upon we. yea, WE!
+            var margin = ImGui.GetTextLineHeight();
+            var viewTop = ImGui.GetScrollY() - margin;
+            var viewBottom = ImGui.GetScrollY() + ImGui.GetWindowHeight() + margin;
+            var rowPadding = isTable && !moreCompact ? oldCellPaddingY * 2 : 0f;
+            float? spacer = null;
+            var lastRow = -1;
+            var openedAt = -1;
+            var openedHeight = 0f;
+            if (reset)
+                SpacerJumps.Remove(tab.Identifier);
+            SpacerJumps.TryGetValue(tab.Identifier, out var jump);
+            void CloseSpacer(int end)
+            {
+                // Only history wholly above the view is kept, since only that stays skippable while the view holds.
+                if (end > 0 && lastPosY + spacer!.Value < viewTop)
+                    SpacerJumps[tab.Identifier] = (messages[openedAt], messages[end - 1], end, spacer.Value - openedHeight);
+                if (isTable)
+                    ImGui.TableNextColumn();
+                ImGui.Dummy(new Vector2(10f, spacer!.Value));
+                spacer = null;
+            }
+            // TildeTools ends
+
             var maxLines = Plugin.Config.MaxLinesToRender;
             var startLine = messages.Count > maxLines ? messages.Count - maxLines : 0;
             for (var i = startLine; i < messages.Count; i++)
@@ -693,6 +724,11 @@ public partial class ChatLog : Window, IChatWindow
                             continue;
                     }
 
+                    // TildeTools
+                    // A spacer holding the run's first message holds its label as well.
+                    if (spacer != null)
+                        sameCount = 0;
+                    // TildeTools ends
                     if (sameCount > 0)
                     {
                         ImGui.SameLine();
@@ -710,6 +746,21 @@ public partial class ChatLog : Window, IChatWindow
                         continue;
                 }
 
+                // TildeTools
+                message.Height.TryGetValue(tab.Identifier, out var known);
+                var skippable = !reset && known != null && i != messages.Count - 1 && !(message.IsVisible.TryGetValue(tab.Identifier, out var shown) && shown);
+                if (spacer != null)
+                {
+                    var top = lastPosY + spacer.Value + rowPadding;
+                    if (skippable && (top + known!.Value < viewTop || top > viewBottom))
+                    {
+                        spacer += rowPadding + known.Value;
+                        continue;
+                    }
+                    CloseSpacer(i);
+                }
+                // TildeTools ends
+
                 // go to next row
                 if (isTable)
                     ImGui.TableNextColumn();
@@ -717,9 +768,12 @@ public partial class ChatLog : Window, IChatWindow
                 // Set the height of the previous message. `lastPosY` is set to
                 // the top of the previous message, and the current cursor is at
                 // the top of the current message.
-                if (i > 0)
+                // TildeTools
+                // The last row opened, which isn't i - 1 after a run of duplicates.
+                if (lastRow >= 0)
                 {
-                    var prevMessage = messages[i - 1];
+                    var prevMessage = messages[lastRow];
+                // TildeTools ends
                     prevMessage.Height.TryGetValue(tab.Identifier, out var prevHeight);
                     if (prevHeight == null || (prevMessage.IsVisible.TryGetValue(tab.Identifier, out var prevVisible) && prevVisible))
                     {
@@ -734,6 +788,25 @@ public partial class ChatLog : Window, IChatWindow
                     }
                 }
                 lastPosY = ImGui.GetCursorPosY();
+
+                // TildeTools
+                lastRow = i;
+                if (skippable && (lastPosY + known!.Value < viewTop || lastPosY > viewBottom))
+                {
+                    spacer = known.Value;
+                    openedAt = i;
+                    openedHeight = known.Value;
+                    if (ReferenceEquals(jump.Opener, message) && jump.End < messages.Count && ReferenceEquals(messages[jump.End - 1], jump.Last)
+                        && lastPosY + spacer + jump.Tail < viewTop)
+                    {
+                        spacer += jump.Tail;
+                        i = jump.End - 1;
+                        lastMessageHash = jump.Last.Hash;
+                        sameCount = 0;
+                    }
+                    continue;
+                }
+                // TildeTools ends
 
                 // message has rendered once
                 // message isn't visible, so render dummy
@@ -810,6 +883,11 @@ public partial class ChatLog : Window, IChatWindow
 
                 message.IsVisible[tab.Identifier] = ImGui.IsItemVisible();
             }
+
+            // TildeTools
+            if (spacer != null)
+                CloseSpacer(-1);
+            // TildeTools ends
         }
         catch (ApplicationException)
         {

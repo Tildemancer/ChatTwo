@@ -43,7 +43,10 @@ public sealed class SettingsWindow : Window
             new Database(Plugin, Mutable),
             new Webinterface(Plugin, Mutable),
             new Miscellaneous(Mutable),
-            new Changelog(Mutable),
+            // TildeTools
+            // No changelog when hosted, since it reads TT's manifest and would be empty.
+            .. Hosting.IsHosted ? [] : new ISettingsTab[] { new Changelog(Mutable) },
+            // TildeTools ends
             new About()
         ];
 
@@ -125,26 +128,7 @@ public sealed class SettingsWindow : Window
             IsOpen = false;
         }
 
-        const string buttonLabel = "Anna's Ko-fi";
-        const string buttonLabel2 = "Infi's Ko-fi";
-
-        using (ImRaii.PushColor(ImGuiCol.Button, ColourUtil.RgbaToAbgr(0xFF5E5BFF)))
-        using (ImRaii.PushColor(ImGuiCol.ButtonHovered, ColourUtil.RgbaToAbgr(0xFF7775FF)))
-        using (ImRaii.PushColor(ImGuiCol.ButtonActive, ColourUtil.RgbaToAbgr(0xFF4542FF)))
-        using (ImRaii.PushColor(ImGuiCol.Text, 0xFFFFFFFF))
-        {
-            var buttonWidth = ImGui.CalcTextSize(buttonLabel).X + ImGui.GetStyle().FramePadding.X * 2;
-            var buttonWidth2 = ImGui.CalcTextSize(buttonLabel2).X + ImGui.GetStyle().FramePadding.X * 2;
-            ImGui.SameLine(ImGui.GetContentRegionAvail().X - buttonWidth - buttonWidth2);
-
-            if (ImGui.Button(buttonLabel2))
-                Dalamud.Utility.Util.OpenLink("https://ko-fi.com/infiii");
-
-            ImGui.SameLine();
-
-            if (ImGui.Button(buttonLabel))
-                Dalamud.Utility.Util.OpenLink("https://ko-fi.com/lojewalo");
-        }
+        // TildeTools: Anna's and Infi's Ko-fi links moved to TT's Credits tab. Sorry if this is uncouth, but I figure it's best to have it in a place most people can easily check for our end...
 
         if (!save)
             return;

@@ -39,13 +39,23 @@ public sealed class About : ISettingsTab
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
+        // TildeTools
+        // Named by hand when hosted, since the manifest's author would be TT.
         ImGui.TextUnformatted(Language.Options_About_Authors);
         ImGui.SameLine();
-        ImGui.TextColored(ImGuiColors.ParsedGold, Plugin.Interface.Manifest.Author);
+        ImGui.TextColored(ImGuiColors.ParsedGold, Hosting.IsHosted ? "Anna and Infi" : Plugin.Interface.Manifest.Author);
+
+        if (Hosting.IsHosted)
+        {
+            ImGui.TextUnformatted("Fork author: ");
+            ImGui.SameLine();
+            ImGui.TextColored(ImGuiColors.ParsedGold, Plugin.Interface.Manifest.Author);
+        }
 
         ImGui.TextUnformatted(Language.Options_About_Discord);
         ImGui.SameLine();
-        ImGui.TextColored(ImGuiColors.ParsedGold, "@infi");
+        ImGui.TextColored(ImGuiColors.ParsedGold, Hosting.IsHosted ? "@tildemancer" : "@infi");
+        // TildeTools ends
 
         ImGui.TextUnformatted(Language.Options_About_Version);
         ImGui.SameLine();
@@ -53,24 +63,66 @@ public sealed class About : ISettingsTab
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
-        ImGui.TextUnformatted(Language.Options_About_Discord_Thread);
-        ImGui.SameLine();
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "discordThread"))
-            Dalamud.Utility.Util.OpenLink("https://canary.discord.com/channels/581875019861328007/1224865018789761126");
+        // TildeTools
+        if (Hosting.IsHosted)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudOrange, "This is a modified build running inside another plugin. Please do not report problems with it to Chat 2's maintainers.");
+        }
+        else
+        {
+            ImGui.TextUnformatted(Language.Options_About_Discord_Thread);
+            ImGui.SameLine();
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "discordThread"))
+                Dalamud.Utility.Util.OpenLink("https://canary.discord.com/channels/581875019861328007/1224865018789761126");
 
-        ImGui.Spacing();
+            ImGui.Spacing();
 
-        ImGui.TextUnformatted(Language.Options_About_Github_Issues);
-        ImGui.SameLine();
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "githubIssues"))
-            Dalamud.Utility.Util.OpenLink("https://github.com/Infiziert90/ChatTwo/issues");
+            ImGui.TextUnformatted(Language.Options_About_Github_Issues);
+            ImGui.SameLine();
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "githubIssues"))
+                Dalamud.Utility.Util.OpenLink("https://github.com/Infiziert90/ChatTwo/issues");
+        }
+        // TildeTools ends
 
         ImGuiHelpers.ScaledDummy(10.0f);
 
-        ImGui.TextUnformatted(Language.Options_About_CrowdIn);
-        ImGui.SameLine();
-        if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "crowdin"))
-            Dalamud.Utility.Util.OpenLink("https://crowdin.com/project/chattwo");
+        // TildeTools
+        // No translation link when hosted, same as the support links.
+        if (Hosting.IsHosted)
+        {
+            ImGui.TextUnformatted("Chat 2 was written by");
+            ImGui.SameLine();
+            ImGui.TextColored(ImGuiColors.ParsedGold, "Anna");
+            ImGui.SameLine();
+            ImGui.TextUnformatted("and is maintained by");
+            ImGui.SameLine();
+            ImGui.TextColored(ImGuiColors.ParsedGold, "Infi");
+            ImGui.SameLine(0, 0);
+            ImGui.TextUnformatted(".");
+
+            ImGui.Spacing();
+
+            if (ImGui.Button("Anna's Ko-fi"))
+                Dalamud.Utility.Util.OpenLink("https://ko-fi.com/lojewalo");
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Infi's Ko-fi"))
+                Dalamud.Utility.Util.OpenLink("https://ko-fi.com/infiii");
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Source"))
+                Dalamud.Utility.Util.OpenLink("https://github.com/Infiziert90/ChatTwo");
+        }
+        else
+        {
+            ImGui.TextUnformatted(Language.Options_About_CrowdIn);
+            ImGui.SameLine();
+            if (ImGuiUtil.IconButton(FontAwesomeIcon.ExternalLinkAlt, "crowdin"))
+                Dalamud.Utility.Util.OpenLink("https://crowdin.com/project/chattwo");
+        }
+        // TildeTools ends
 
         ImGui.Spacing();
 

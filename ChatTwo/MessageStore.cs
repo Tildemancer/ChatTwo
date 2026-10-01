@@ -138,8 +138,7 @@ public class MessageStore : IDisposable
         Connection.Close();
         Connection.Dispose();
         // Closing the connection doesn't immediately release the file.
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
+        // TildeTools: Removed upstream's forced GC here. It froze the game on every stop and that got old fast
     }
 
     private SqliteConnection Connect()

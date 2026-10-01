@@ -22,6 +22,9 @@ public class InputHandler
                                                    ImGuiInputTextFlags.CallbackCompletion | ImGuiInputTextFlags.CallbackHistory;
 
     public readonly Plugin Plugin;
+    // TildeTools
+    public readonly SpellUnderline Spelling;
+    // TildeTools ends
     public readonly IChatWindow MainWindow;
 
     public readonly SendHandler SendHandler;
@@ -55,7 +58,14 @@ public class InputHandler
         ChunkHandler = new ChunkHandler(plugin);
         PayloadHandler = new PayloadHandler(this);
         AutoCompleteHandler = new AutoCompleteHandler(this);
+        // TildeTools
+        Spelling = new SpellUnderline(plugin);
+        // TildeTools ends
     }
+
+    // TildeTools
+    public string ComposedLine { get; private set; } = string.Empty;
+    // TildeTools ends
 
     public void DrawInputArea(Tab activeTab, float inputWidth, ref bool tellSpecial)
     {
@@ -98,7 +108,15 @@ public class InputHandler
             {
                 var flags = InputFlags | (!isChatEnabled ? ImGuiInputTextFlags.ReadOnly : ImGuiInputTextFlags.None);
                 ImGui.SetNextItemWidth(inputWidth);
-                ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, 500, flags, Callback);
+                // TildeTools
+                // 500 unless a splitter raises it.
+                // Never under the text already there, otherwise activating the box cuts it.
+                ImGui.InputTextWithHint("##chat2-input", isChatEnabled ? "": Language.ChatLog_DisabledInput, ref ChatInput, Math.Max(Plugin.Splitter.InputByteCap, System.Text.Encoding.UTF8.GetByteCount(ChatInput)), flags, Callback);
+
+                // A correction goes back into the box with the caret after it, as the autocomplete's does.
+                if (Spelling.DrawForInput(ref ChatInput) is var caret and >= 0)
+                    (Activate, ActivatePos) = (true, caret);
+                // TildeTools ends
             }
             var inputActive = ImGui.IsItemActive();
             InputFocused = isChatEnabled && inputActive;
@@ -127,9 +145,10 @@ public class InputHandler
                 if (ImGui.IsKeyDown(ImGuiKey.Enter) || ImGui.IsKeyDown(ImGuiKey.KeypadEnter))
                 {
                     Plugin.CommandHelpWindow.IsOpen = false;
-                    SendHandler.SendChatBox(activeTab, ref ChatInput, ref tellSpecial);
-
-                    if (activeTab.CurrentChannel.UseTempChannel)
+                    // TildeTools
+                    // Text kept in the box keeps its temp channel for the retry.
+                    if (SendHandler.SendChatBox(activeTab, ref ChatInput, ref tellSpecial) && activeTab.CurrentChannel.UseTempChannel)
+                    // TildeTools ends
                     {
                         activeTab.CurrentChannel.ResetTempChannel();
                         Plugin.Functions.Chat.SetChannelWithExtraChat(activeTab.CurrentChannel.Channel);
@@ -153,7 +172,10 @@ public class InputHandler
                     unsafe { UIGlobals.PlaySoundEffect(ChatCloseSfx); }
                 }
 
-                if (activeTab.CurrentChannel.UseTempChannel)
+                // TildeTools
+                // Not while text waits for that target, after a refused send, a preview click, or a spelling menu.
+                if (activeTab.CurrentChannel.UseTempChannel && ChatInput.Length == 0)
+                // TildeTools ends
                 {
                     activeTab.CurrentChannel.ResetTempChannel();
                     Plugin.Functions.Chat.SetChannelWithExtraChat(Plugin.CurrentTab.CurrentChannel.Channel);
@@ -165,11 +187,19 @@ public class InputHandler
                 if (context)
                 {
                     using var pushedColor = ImRaii.PushColor(ImGuiCol.Text, normalColor);
+                    // TildeTools
+                    Spelling.DrawContextEntries();
+                    // TildeTools ends
                     if (ImGui.Selectable(Language.ChatLog_HideChat))
                         MainWindow.CurrentHideState = HideState.User;
                 }
             }
         }
+
+        // TildeTools
+        // Last, so InputPreview splits what this frame left in the box.
+        ComposedLine = SendHandler.ComposeLine(activeTab, ChatInput, tellSpecial);
+        // TildeTools ends
     }
 
     private bool IsValidCommand(string command)
@@ -186,12 +216,16 @@ public class InputHandler
             UIGlobals.PlaySoundEffect(ChatOpenSfx);
         }
 
-        // Set the cursor pos to the user selected
-        if (Plugin.InputPreview.SelectedCursorPos != -1)
+        // TildeTools: Removed the SelectedCursorPos jump here with the field, see InputPreview.cs.
+
+        // TildeTools
+        // A click is a one-point range, clearing the old highlight.
+        if (Plugin.InputPreview.SelectedRange is var (from, to))
         {
-            data.CursorPos = Plugin.InputPreview.SelectedCursorPos;
-            Plugin.InputPreview.SelectedCursorPos = -1;
+            (data.SelectionStart, data.SelectionEnd, data.CursorPos) = (from, to, to);
+            Plugin.InputPreview.SelectedRange = null;
         }
+        // TildeTools ends
 
         CursorPos = data.CursorPos;
         if (data.EventFlag == ImGuiInputTextFlags.CallbackCompletion)

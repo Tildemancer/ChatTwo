@@ -61,6 +61,10 @@ public sealed class Plugin : IDalamudPlugin
     public MessageManager MessageManager { get; }
     public IpcManager Ipc { get; }
     public ExtraChat ExtraChat { get; }
+    // TildeTools
+    public Splitter Splitter { get; }
+    public SpellCheck SpellCheck { get; }
+    // TildeTools ends
     public TypingIpc TypingIpc { get; }
     public FontManager FontManager { get; }
 
@@ -90,7 +94,9 @@ public sealed class Plugin : IDalamudPlugin
         {
             GameStarted = Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
-            Config = Interface.GetPluginConfig() as Configuration ?? new Configuration();
+            // TildeTools
+            Config = Hosting.LoadConfig();
+            // TildeTools ends
 
 #pragma warning disable CS0618 // Type or member is obsolete
             // TODO Remove after 01.07.2026
@@ -133,6 +139,10 @@ public sealed class Plugin : IDalamudPlugin
             Ipc = new IpcManager();
             TypingIpc = new TypingIpc(this);
             ExtraChat = new ExtraChat();
+            // TildeTools
+            Splitter = new Splitter();
+            SpellCheck = new SpellCheck();
+            // TildeTools ends
             FontManager = new FontManager();
 
             MessageManager = new MessageManager(this); // Does it require UI?
@@ -218,6 +228,10 @@ public sealed class Plugin : IDalamudPlugin
 
         TypingIpc?.Dispose();
         ExtraChat?.Dispose();
+        // TildeTools
+        Splitter?.Dispose();
+        SpellCheck?.Dispose();
+        // TildeTools ends
         Ipc?.Dispose();
         MessageManager?.DisposeAsync().AsTask().Wait();
         Functions?.Dispose();
@@ -254,7 +268,9 @@ public sealed class Plugin : IDalamudPlugin
 
     public void SaveConfig()
     {
-        Interface.SavePluginConfig(Config);
+        // TildeTools
+        Hosting.SaveConfig(Config);
+        // TildeTools ends
     }
 
     public void LanguageChanged(string langCode)

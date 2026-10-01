@@ -1,11 +1,9 @@
 using System.Numerics;
 using System.Text;
-using System.Text.RegularExpressions;
-using ChatTwo.Code;
-using ChatTwo.Resources;
+// TildeTools: Removed three usings here and one below, only the code moved to InputPreview.TildeTools.cs used them.
 using ChatTwo.Ui.Handler;
 using ChatTwo.Util;
-using Dalamud.Game.Text;
+// TildeTools: The fourth, see above.
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.Utility.Raii;
@@ -23,13 +21,16 @@ public partial class InputPreview : Window
     private bool HasEvaluation;
     public float PreviewHeight;
 
-    private int LastLength;
+    // TildeTools
+    private string LastInput = string.Empty;
+    private string LastTrimmed = string.Empty;
+    // TildeTools ends
     private Message? PreviewMessage;
 
     private int CursorPosition;
     private bool NextChunkIsAutoTranslate;
 
-    public int SelectedCursorPos = -1;
+    // TildeTools: Removed SelectedCursorPos. Only the letter loop DrawWords replaced ever set it. SelectedRange actually does its job now.
 
     public InputPreview(InputHandler inputHandler) : base("##chat2-inputpreview")
     {
@@ -56,27 +57,43 @@ public partial class InputPreview : Window
         Drawing = ValidDraw;
         if (!Drawing)
         {
-            LastLength = 0;
-            PreviewHeight = 0;
+            // TildeTools
+            PreviewHeight = PreviewWidth = 0;
+            // TildeTools ends
             PreviewMessage = null;
             HasEvaluation = false;
 
             return;
         }
 
-        if (PreviewMessage == null || LastLength != InputHandler.ChatInput.Length)
+        // TildeTools
+        if (Plugin.Config.PreviewPosition is PreviewPosition.None)
         {
-            LastLength = InputHandler.ChatInput.Length;
-
-            var bytes = Encoding.UTF8.GetBytes(InputHandler.ChatInput.Trim());
-            AutoTranslate.ReplaceWithPayload(ref bytes);
-
-            var chunks = ChunkUtil.ToChunks(SeString.Parse(bytes), ChunkSource.Content, ChatType.Say).ToList();
-            PreviewMessage = Message.FakeMessage(chunks, new ChatCode(XivChatType.Say, 0, 0));
-            PreviewMessage.DecodeTextParam();
+            HasEvaluation = false;
+            return;
         }
 
-        HasEvaluation = !Plugin.Config.OnlyPreviewIf || PreviewMessage.Content.Count > 1;
+        if (PreviewMessage == null || LastInput != InputHandler.ChatInput)
+        {
+            LastInput = InputHandler.ChatInput;
+            LastTrimmed = LastInput.Trim();
+
+            // Past the cap, only the parts draw.
+            // Parsing 18k characters costs 28-35 ms, since ReplaceWithPayload copies bytes[i..] per byte!
+            PreviewMessage = BuildMessage(Encoding.UTF8.GetByteCount(LastTrimmed) > Ipc.Splitter.DefaultByteCap ? string.Empty : LastTrimmed);
+        }
+
+        UpdateSplitParts();
+
+        // Uses the untrimmed input, since Trim drops the trailing space that marks a word done.
+        // Split parts check themselves.
+        if (SplitMessages is null && PreviewMessage.Content.Count > 0)
+            SetSpellSource(LastTrimmed, complete: char.IsWhiteSpace(InputHandler.ChatInput[^1]));
+        else
+            SpellMarks = [];
+
+        HasEvaluation = !Plugin.Config.OnlyPreviewIf || PreviewMessage.Content.Count > 1 || SplitHasEvaluation;
+        // TildeTools ends
     }
 
     public bool IsDrawable => ValidDraw && HasEvaluation;
@@ -92,7 +109,12 @@ public partial class InputPreview : Window
         var pos = InputHandler.MainWindow.LastWindowPos;
         var size = InputHandler.MainWindow.LastWindowSize;
 
-        Size = size with { Y = PreviewHeight };
+        // TildeTools
+        var width = PreviewWidth > 0 ? PreviewWidth : size.X;
+
+        // PreviewWidth and PreviewHeight are in pixels, and Window scales Size again, so divide it out...
+        Size = new Vector2(width, PreviewHeight) / Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale;
+        // TildeTools ends
 
         var y = Plugin.Config.PreviewPosition switch
         {
@@ -101,7 +123,9 @@ public partial class InputPreview : Window
             _ => throw new ArgumentOutOfRangeException(nameof(Plugin.Config.PreviewPosition), Plugin.Config.PreviewPosition, null),
         };
 
-        Position = pos with { Y = y };
+        // TildeTools
+        Position = KeepOnScreen(y, pos, size.X, width);
+        // TildeTools ends
         PositionCondition = ImGuiCond.Always;
     }
 
@@ -111,37 +135,10 @@ public partial class InputPreview : Window
         DrawPreview();
     }
 
-    public void CalculatePreview()
-    {
-        // We Pre-draw this once to get the actual height :HideThePain:
-        PreviewHeight = 0;
-
-        var pos = ImGui.GetCursorPos();
-        ImGui.SetCursorPos(new Vector2(-500, -500));
-        var before = ImGui.GetCursorPosY();
-        using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
-        {
-            ImGui.TextUnformatted(Language.Options_Preview_Header);
-            DrawChunksPreview(PreviewMessage!.Content);
-        }
-        var after = ImGui.GetCursorPosY();
-        ImGui.SetCursorPos(pos);
-
-        PreviewHeight = after - before;
-        PreviewHeight += IsWindowMode ? ImGui.GetStyle().WindowPadding.Y * 2 : 0;
-    }
-
-    public void DrawPreview()
-    {
-        using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
-        {
-            ImGui.TextUnformatted(Language.Options_Preview_Header);
-
-            DrawChunksPreview(PreviewMessage!.Content, InputHandler.PayloadHandler, unique: 10000);
-        }
-    }
-
-    private void DrawChunksPreview(IReadOnlyList<Chunk> chunks, PayloadHandler? handler = null, float lineWidth = 0f, int unique = 0)
+    // TildeTools
+    // CalculatePreview and DrawPreview are in InputPreview.TildeTools.cs.
+    private void DrawChunksPreview(IReadOnlyList<Chunk> chunks, PayloadHandler? handler = null, float lineWidth = 0f)
+    // TildeTools ends
     {
         CursorPosition = 0;
 
@@ -151,7 +148,9 @@ public partial class InputPreview : Window
             if (chunks[i] is TextChunk text && string.IsNullOrEmpty(text.Content))
                 continue;
 
-            DrawChunkPreview(chunks[i], handler, lineWidth, unique);
+            // TildeTools
+            DrawChunkPreview(chunks[i], handler, lineWidth);
+            // TildeTools ends
 
             if (i < chunks.Count - 1)
             {
@@ -168,7 +167,9 @@ public partial class InputPreview : Window
         }
     }
 
-    private void DrawChunkPreview(Chunk chunk, PayloadHandler? handler = null, float lineWidth = 0f, int unique = 0)
+    // TildeTools
+    private void DrawChunkPreview(Chunk chunk, PayloadHandler? handler = null, float lineWidth = 0f)
+    // TildeTools ends
     {
         if (chunk is IconChunk icon)
         {
@@ -234,28 +235,11 @@ public partial class InputPreview : Window
             return;
         }
 
-        foreach (var word in WhitespaceRegex().Split(text.Content).Where(s => s != string.Empty))
-        {
-            var wordSize = ImGui.CalcTextSize(word);
-            if (ImGui.GetContentRegionAvail().X < wordSize.X)
-                ImGui.NewLine();
-
-            foreach (var letter in word)
-            {
-                var letterSize = ImGui.CalcTextSize(letter.ToString());
-
-                CursorPosition++;
-                if (ImGui.Selectable($"{letter}##{CursorPosition + unique}", false, ImGuiSelectableFlags.None, letterSize))
-                {
-                    SelectedCursorPos = CursorPosition;
-                    InputHandler.FocusedPreview = true;
-                }
-                ImGui.SameLine();
-            }
-        }
+        // TildeTools
+        DrawWords(text.Content, handler);
+        // TildeTools ends
         ImGui.NewLine();
     }
 
-    [GeneratedRegex(@"(\s)")]
-    private static partial Regex WhitespaceRegex();
+    // TildeTools: WhitespaceRegex went with the letter-by-letter loop. See DrawWords
 }

@@ -71,6 +71,11 @@ public sealed class PayloadHandler
         }
 
         using var id = ImRaii.PushId(PopupId);
+
+        // TildeTools
+        WordLookup.DrawDefine(InputHandler.Plugin.SpellCheck);
+        // TildeTools ends
+
         var drawn = false;
         switch (payload)
         {

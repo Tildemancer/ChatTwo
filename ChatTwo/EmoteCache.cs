@@ -70,7 +70,7 @@ public static class EmoteCache
                     Cache.TryAdd(emote.Code, emote);
 
             var jsonString = await File.ReadAllTextAsync(Path.Combine(Plugin.Interface.AssemblyLocation.Directory!.FullName, "SharedEmoteList.json"));
-            Plugin.Log.Information(jsonString);
+            // TildeTools: C2 excessively logged the whole emote list here.
             foreach (var emote in JsonSerializer.Deserialize<Emote[]>(jsonString)!)
                 if (!NotWorking.Contains(emote.Code))
                     Cache.TryAdd(emote.Code, emote);
@@ -88,6 +88,13 @@ public static class EmoteCache
     {
         foreach (var emote in EmoteImages.Values)
             emote.InnerDispose();
+
+        // TildeTools
+        // It's static, so without a reset a second startup hands out disposed textures.
+        EmoteImages.Clear();
+        SortedCodeArray = [];
+        State = LoadingState.Unloaded;
+        // TildeTools ends
     }
 
     public static bool Exists(string code)
@@ -143,7 +150,9 @@ public static class EmoteCache
 
         public async Task<byte[]> LoadAsync(Emote emote)
         {
-            var dir = Path.Join(Plugin.Interface.ConfigDirectory.FullName, "EmoteCacheV1");
+            // TildeTools
+            var dir = Path.Join(Hosting.DataDirectory.FullName, "EmoteCacheV1");
+            // TildeTools ends
             Directory.CreateDirectory(dir);
 
             var filePath = Path.Join(dir, $"{emote.Id}.{emote.ImageType}");
@@ -188,7 +197,10 @@ public static class EmoteCache
             catch (Exception ex)
             {
                 Failed = true;
-                Plugin.Log.Error(ex, $"Unable to load {emote.Code} with id {emote.Id}");
+                // TildeTools
+                // Debug, not Error, because some emote images never decode.
+                Plugin.Log.Debug(ex, $"Unable to load {emote.Code} with id {emote.Id}");
+                // TildeTools ends
             }
         }
 
@@ -278,7 +290,10 @@ public static class EmoteCache
             catch (Exception ex)
             {
                 Failed = true;
-                Plugin.Log.Error(ex, $"Unable to load {emote.Code} with id {emote.Id}");
+                // TildeTools
+                // Debug, as in ImGuiEmote.Load.
+                Plugin.Log.Debug(ex, $"Unable to load {emote.Code} with id {emote.Id}");
+                // TildeTools ends
             }
         }
     }
