@@ -10,7 +10,7 @@ namespace ChatTwo.Ui;
 
 public sealed class SpellUnderline(Plugin plugin)
 {
-    private static readonly Vector4 Colour = new(1f, 0.25f, 0.25f, 1f);
+    private static readonly Vector4 Color = new(1f, 0.25f, 0.25f, 1f);
 
     private const float Drop = 1.5f;
     private const float Thickness = 1.5f;
@@ -33,7 +33,7 @@ public sealed class SpellUnderline(Plugin plugin)
     public static void Underline(float left, float right, float bottom)
     {
         var y = bottom - Drop * ImGuiHelpers.GlobalScale;
-        ImGui.GetWindowDrawList().AddLine(new Vector2(left, y), new Vector2(right, y), ImGui.GetColorU32(Colour), Thickness * ImGuiHelpers.GlobalScale);
+        ImGui.GetWindowDrawList().AddLine(new Vector2(left, y), new Vector2(right, y), ImGui.GetColorU32(Color), Thickness * ImGuiHelpers.GlobalScale);
     }
 
     public (int Start, int End) InputSelection { get; private set; } = (-1, -1);
@@ -152,7 +152,7 @@ public sealed class SpellUnderline(Plugin plugin)
             min.Y + size.Y - thick);
 
         var drawList = ImGui.GetWindowDrawList();
-        var colour = ImGui.GetColorU32(Colour);
+        var color = ImGui.GetColorU32(Color);
         var measured = MeasuredFor(text, misspellings);
 
         // Clipped to the frame like the text, since clipping at the padding cuts off edge marks.
@@ -167,7 +167,7 @@ public sealed class SpellUnderline(Plugin plugin)
             if (right <= left)
                 continue;
 
-            drawList.AddLine(new Vector2(left, y), new Vector2(right, y), colour, thick);
+            drawList.AddLine(new Vector2(left, y), new Vector2(right, y), color, thick);
         }
     }
 

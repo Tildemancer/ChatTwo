@@ -486,7 +486,7 @@ public partial class InputPreview
     private void DrawWords(string content, PayloadHandler? handler)
     {
         var selecting = DragAnchor >= 0 || InputHandler.Spelling.InputSelection.Start >= 0;
-        var (drawList, textColour) = (ImGui.GetWindowDrawList(), ImGui.GetColorU32(ImGuiCol.Text));
+        var (drawList, textColor) = (ImGui.GetWindowDrawList(), ImGui.GetColorU32(ImGuiCol.Text));
 
         foreach (var word in WordsOf(content))
         {
@@ -519,7 +519,7 @@ public partial class InputPreview
             if (selecting)
                 DrawRuns(word, start, from, to.Y, selection: true);
 
-            drawList.AddText(from, textColour, word);
+            drawList.AddText(from, textColor, word);
             DrawRuns(word, start, from, to.Y, selection: false);
 
             if (ImGui.IsMouseHoveringRect(from, to))
