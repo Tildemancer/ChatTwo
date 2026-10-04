@@ -1,6 +1,7 @@
 // TildeTools: written for this fork, not part of upstream Chat 2.
 
 using Dalamud.Plugin.Ipc;
+using Dalamud.Plugin.Ipc.Exceptions;
 
 namespace ChatTwo.Ipc;
 
@@ -87,8 +88,9 @@ public sealed class SpellCheck : IDisposable
             for (var i = 0; i + 1 < flat.Count; i += 2)
                 result.Add(new Misspelling(flat[i], flat[i + 1]));
         }
-        catch
+        catch (Exception ex)
         {
+            Failed(ex);
             IsAvailable = false;
         }
 
@@ -103,8 +105,9 @@ public sealed class SpellCheck : IDisposable
         {
             return DrawMenuGate.InvokeFunc(id, word, misspelled, use);
         }
-        catch
+        catch (Exception ex)
         {
+            Failed(ex);
             return true;
         }
     }
@@ -115,6 +118,18 @@ public sealed class SpellCheck : IDisposable
     // Opens TT's Define window.
     public void Define(string word) => Try(() => DefineGate.InvokeFunc(word), false);
 
+    // Not ready is TT's Spelling being off or TT unloading, anything else is logged, once.
+    private static bool _failed;
+
+    private static void Failed(Exception ex)
+    {
+        if (ex is IpcNotReadyError || _failed)
+            return;
+
+        _failed = true;
+        Plugin.Log.Warning(ex, "A TildeTools spellcheck gate already failed.");
+    }
+
     // Gates throw while TT unloads or their module is off. Not great.
     // Is it time to use a Try that returns failed? Ough.
     // TODO: check the gate's HasFunction, I guess. I don't know I didn't do it here I did it in WS... I'll do this later
@@ -124,8 +139,9 @@ public sealed class SpellCheck : IDisposable
         {
             return call();
         }
-        catch
+        catch (Exception ex)
         {
+            Failed(ex);
             return failed;
         }
     }
